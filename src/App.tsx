@@ -16,6 +16,12 @@ function App() {
   const [grid, setGrid] = useState<HexCellData[]>(() => generateHexGrid(ARABIC_LETTERS));
   const [winner, setWinner] = useState<'Orange' | 'Green' | null>(null);
   const winnerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+
+  // Responsive orange zone parameters - use smaller values when width < 360px
+  const isSmallScreen = viewportWidth < 360;
+  const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
+  const orangeInnerEdgeLength = isSmallScreen ? 5 : ORANGE_INNER_EDGE_LENGTH;
 
   const handleCellClick = (id: string) => {
     setGrid(prevGrid => {
@@ -55,6 +61,16 @@ function App() {
         clearTimeout(winnerTimeout.current);
       }
     };
+  }, []);
+
+  // Track viewport width for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const boardGlow: CSSProperties = {}; // No shadows
@@ -104,11 +120,11 @@ function App() {
             height: '100vh',
             pointerEvents: 'none'
           }}>
-            {/* Calculate inner edge positions based on length parameter */}
+            {/* Calculate inner edge positions based on responsive length parameter */}
             {(() => {
-              // Inner edge spans ORANGE_INNER_EDGE_LENGTH% of height, centered
-              const innerEdgeTop = 50 - (ORANGE_INNER_EDGE_LENGTH / 2);
-              const innerEdgeBottom = 50 + (ORANGE_INNER_EDGE_LENGTH / 2);
+              // Inner edge spans orangeInnerEdgeLength% of height, centered
+              const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
+              const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
               return (
                 <>
                   {/* Left orange zone */}
@@ -118,7 +134,7 @@ function App() {
                       left: 0,
                       top: 0,
                       bottom: 0,
-                      width: `calc(2.5vw + ${ORANGE_ZONE_DISTANCE}%)`,
+                      width: `calc(2.5vw + ${orangeZoneDistance}%)`,
                       backgroundColor: '#f4841f',
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                     }}
@@ -130,7 +146,7 @@ function App() {
                       right: 0,
                       top: 0,
                       bottom: 0,
-                      width: `calc(2.5vw + ${ORANGE_ZONE_DISTANCE}%)`,
+                      width: `calc(2.5vw + ${orangeZoneDistance}%)`,
                       backgroundColor: '#f4841f',
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                       transform: 'scaleX(-1)'
