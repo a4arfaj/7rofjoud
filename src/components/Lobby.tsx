@@ -1,25 +1,39 @@
 import React, { useState } from 'react';
 
 interface LobbyProps {
-  onJoinRoom: (roomId: string, isCreator: boolean) => void;
+  onJoinRoom: (roomId: string, isCreator: boolean, playerName: string) => void;
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   const [roomId, setRoomId] = useState('');
+  const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
 
+  const validateAndProceed = (action: () => void) => {
+    if (!playerName.trim()) {
+      setError('الرجاء إدخال الاسم');
+      return;
+    }
+    setError('');
+    action();
+  };
+
   const handleCreate = () => {
-    // Generate a random 4-digit room ID
-    const newRoomId = Math.floor(1000 + Math.random() * 9000).toString();
-    onJoinRoom(newRoomId, true);
+    validateAndProceed(() => {
+      // Generate a random 4-digit room ID
+      const newRoomId = Math.floor(1000 + Math.random() * 9000).toString();
+      onJoinRoom(newRoomId, true, playerName);
+    });
   };
 
   const handleEnter = () => {
-    if (!roomId.trim()) {
-      setError('الرجاء إدخال رقم الغرفة');
-      return;
-    }
-    onJoinRoom(roomId, false);
+    validateAndProceed(() => {
+      if (!roomId.trim()) {
+        setError('الرجاء إدخال رقم الغرفة');
+        return;
+      }
+      onJoinRoom(roomId, false, playerName);
+    });
   };
 
   return (
@@ -28,6 +42,20 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
       
       <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
         <div className="space-y-6">
+          {/* Name Input */}
+          <div>
+            <label className="block text-white/90 text-lg font-bold mb-2 mr-1">الاسم</label>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="ادخل اسمك"
+              className="w-full px-4 py-3 bg-white/90 text-gray-800 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-[#f4841f] text-center placeholder-gray-500"
+            />
+          </div>
+
+          <div className="border-t border-white/20 my-4"></div>
+
           {/* Create Room Button */}
           <button
             onClick={handleCreate}
@@ -57,7 +85,7 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
             >
               ادخل غرفة
             </button>
-            {error && <p className="text-red-200 text-center font-bold mt-2">{error}</p>}
+            {error && <p className="text-red-200 text-center font-bold mt-2 bg-red-500/20 py-2 rounded-lg">{error}</p>}
           </div>
         </div>
       </div>
@@ -66,4 +94,3 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 };
 
 export default Lobby;
-

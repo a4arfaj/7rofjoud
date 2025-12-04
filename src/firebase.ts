@@ -13,7 +13,10 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID"
 };
 
+if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+  console.error("⚠️ Firebase is NOT configured! You must update src/firebase.ts with your actual Firebase keys for multiplayer to work.");
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
-
