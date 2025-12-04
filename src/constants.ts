@@ -23,3 +23,10 @@ export const ORANGE_ZONE_WIDTH = 25; // Vertical coverage of orange zones (0-50,
 // Lower values = wider coverage (zones cover more vertical space)
 // Higher values = narrower coverage (zones cover less vertical space)
 
+// Inner edge length control
+export const ORANGE_INNER_EDGE_LENGTH = 50; // Length/height of the inner vertical edge (0-100)
+// Controls how tall the inner edge of orange zones is (centered vertically)
+// 50 = inner edge spans from 25% to 75% of height
+// Lower values = shorter inner edge (e.g., 30 = spans from 35% to 65%)
+// Higher values = taller inner edge (e.g., 70 = spans from 15% to 85%)
+
