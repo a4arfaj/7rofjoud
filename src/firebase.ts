@@ -1,20 +1,22 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 
-// Your web app's Firebase configuration
-// For now, these are placeholders. You MUST replace them with your actual Firebase config.
+// Firebase configuration
+// See FIREBASE_EXPLANATION.md for detailed setup instructions
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
   projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123"
 };
 
+// Check if Firebase is configured
 if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-  console.error("⚠️ Firebase is NOT configured! You must update src/firebase.ts with your actual Firebase keys for multiplayer to work.");
+  console.error("⚠️ Firebase is NOT configured!");
+  console.error("📖 See FIREBASE_EXPLANATION.md for step-by-step instructions");
 }
 
 // Initialize Firebase
