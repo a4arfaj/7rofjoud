@@ -18,8 +18,8 @@ function App() {
   const winnerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
 
-  // Responsive orange zone parameters - use smaller values when width < 360px
-  const isSmallScreen = viewportWidth < 360;
+  // Responsive orange zone parameters - use smaller values when width < 430px
+  const isSmallScreen = viewportWidth < 430;
   const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
   const orangeInnerEdgeLength = isSmallScreen ? 5 : ORANGE_INNER_EDGE_LENGTH;
 

@@ -12,7 +12,7 @@ export const HEX_SPACING = 1.0; // Spacing between hex centers (1.0 = touching)
 // Lower values = zones extend more toward center
 // Higher values = zones stay closer to edges
 export const ORANGE_ZONE_DISTANCE = 60; // How far orange zones extend INTO the container (0-50)
-// NOTE: When viewport width < 360px, this is automatically set to 20
+// NOTE: When viewport width < 430px, this is automatically set to 20
 // 0 = stops at container edge
 // Higher values = extends further into container, closer to honeycomb
 export const GREEN_ZONE_DISTANCE = 80; // Distance from center for green top/bottom zones (0-50, where 50 = center)
@@ -25,7 +25,7 @@ export const ORANGE_ZONE_WIDTH = 20; // Vertical coverage of orange zones (0-50,
 
 // Inner edge length control
 export const ORANGE_INNER_EDGE_LENGTH = 50; // Length/height of the inner vertical edge (0-100)
-// NOTE: When viewport width < 360px, this is automatically set to 5
+// NOTE: When viewport width < 430px, this is automatically set to 5
 // Controls how tall the inner edge of orange zones is (centered vertically)
 // 50 = inner edge spans from 25% to 75% of height
 // Lower values = shorter inner edge (e.g., 30 = spans from 35% to 65%)
