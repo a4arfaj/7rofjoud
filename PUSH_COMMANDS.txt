@@ -1,0 +1,13 @@
+Once you've created the GitHub repository, run these commands:
+
+Replace YOUR_USERNAME with your GitHub username:
+
+git remote add origin https://github.com/YOUR_USERNAME/arabic-hex-game.git
+git branch -M main
+git push -u origin main
+
+OR if the repository has a different name, replace "arabic-hex-game" with your repository name.
+
+After pushing, your repository will be at:
+https://github.com/YOUR_USERNAME/arabic-hex-game
+
