@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Cairo:wght@700;900&family=Noto+Sans+Arabic:wght@700&display=swap');
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  font-family: 'Cairo', 'Amiri', 'Noto Sans Arabic', 'Scheherazade New', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f3f4f6;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
