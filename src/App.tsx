@@ -224,47 +224,44 @@ function App() {
     }).join('');
   };
 
-  // Helper to generate deterministic positions for floating names
-  const getFloatingStyle = (name: string, zone: 'green-top' | 'green-bottom' | 'orange-left' | 'orange-right') => {
-    // Simple deterministic "random" based on name
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  // Helper to generate centralized positions for floating names
+  const getFloatingStyle = (index: number, total: number, zone: 'green-top' | 'green-bottom' | 'orange-left' | 'orange-right') => {
+    // Calculate centralized positions - spread evenly around center
+    let offset = 0;
+    if (total > 1) {
+      const spacing = Math.min(30, 80 / total); // Max spacing of 30% per item
+      offset = (index - (total - 1) / 2) * spacing;
     }
-    
-    const rand1 = Math.abs(hash % 100) / 100; // 0 to 1
-    const rand2 = Math.abs((hash >> 3) % 100) / 100; // 0 to 1
 
-    // Adjust positions based on zone to ensure visibility within clip paths
+    // Adjust positions based on zone - more centralized
     switch(zone) {
       case 'green-top':
-        // Top V shape. Keep vertically small (0-10%) and horizontally centered (20-80%)
+        // Top V shape - centered horizontally around 50%, small vertical offset
         return { 
-          top: `${5 + rand1 * 10}%`, 
-          left: `${15 + rand2 * 70}%`,
-          transform: `rotate(${rand1 * 20 - 10}deg)`
+          top: '40%', 
+          left: `calc(50% + ${offset}%)`,
+          transform: 'translateX(-50%)'
         };
       case 'green-bottom':
-        // Bottom V shape.
+        // Bottom V shape - centered horizontally
         return { 
-          bottom: `${5 + rand1 * 10}%`, 
-          left: `${15 + rand2 * 70}%`,
-          transform: `rotate(${rand1 * 20 - 10}deg)`
+          bottom: '40%', 
+          left: `calc(50% + ${offset}%)`,
+          transform: 'translateX(-50%)'
         };
       case 'orange-left':
-        // Left side.
+        // Left side - centered vertically around 50%, positioned in center of zone width
         return { 
-          top: `${10 + rand1 * 80}%`, 
-          left: `${10 + rand2 * 40}%`, // Keep mostly to the left/outer side
-          transform: `rotate(${rand1 * 20 - 10}deg)`
+          top: `calc(50% + ${offset}%)`, 
+          left: '50%',
+          transform: 'translate(-50%, -50%)'
         };
       case 'orange-right':
-        // Right side (container is flipped scaleX(-1))
-        // So 'left' here visually means 'right' edge of the screen
+        // Right side - centered vertically
         return { 
-          top: `${10 + rand1 * 80}%`, 
-          left: `${10 + rand2 * 40}%`,
-          transform: `rotate(${rand1 * 20 - 10}deg)` // Rotation might need counter-flip if text wasn't un-flipped
+          top: `calc(50% + ${offset}%)`, 
+          left: '50%',
+          transform: 'translate(-50%, -50%)'
         };
     }
     return {};
@@ -367,11 +364,11 @@ function App() {
             />
             {/* Floating Names in Green Zone (Top) */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
-               {players.filter(p => p.team === 'green').slice(0, Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i) => (
+               {players.filter(p => p.team === 'green').slice(0, Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i, arr) => (
                  <div 
                    key={`green-top-${i}`} 
-                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                   style={getFloatingStyle(p.name, 'green-top')}
+                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                   style={getFloatingStyle(i, arr.length, 'green-top')}
                  >
                    {p.name}
                  </div>
@@ -387,11 +384,11 @@ function App() {
             />
              {/* Floating Names in Green Zone (Bottom) */}
              <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
-               {players.filter(p => p.team === 'green').slice(Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i) => (
+               {players.filter(p => p.team === 'green').slice(Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i, arr) => (
                  <div 
                    key={`green-bottom-${i}`} 
-                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                   style={getFloatingStyle(p.name, 'green-bottom')} // Different seed
+                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                   style={getFloatingStyle(i, arr.length, 'green-bottom')}
                  >
                    {p.name}
                  </div>
@@ -428,11 +425,11 @@ function App() {
                   >
                     {/* Floating Names in Orange Zone (Left) */}
                     <div className="relative w-full h-full overflow-hidden">
-                      {players.filter(p => p.team === 'orange').slice(0, Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i) => (
+                      {players.filter(p => p.team === 'orange').slice(0, Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i, arr) => (
                         <div 
                           key={`orange-left-${i}`} 
-                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                          style={getFloatingStyle(p.name, 'orange-left')}
+                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                          style={getFloatingStyle(i, arr.length, 'orange-left')}
                         >
                           {p.name}
                         </div>
@@ -456,11 +453,11 @@ function App() {
                     {/* Floating Names in Orange Zone (Right) */}
                     {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
                     <div className="relative w-full h-full overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
-                       {players.filter(p => p.team === 'orange').slice(Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i) => (
+                       {players.filter(p => p.team === 'orange').slice(Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i, arr) => (
                         <div 
                           key={`orange-right-${i}`} 
-                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                          style={getFloatingStyle(p.name, 'orange-right')}
+                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                          style={getFloatingStyle(i, arr.length, 'orange-right')}
                         >
                           {p.name}
                         </div>
