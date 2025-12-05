@@ -47,15 +47,17 @@ function App() {
   const orangeInnerEdgeLength = isSmallScreen ? 5 : ORANGE_INNER_EDGE_LENGTH;
 
   // Handle joining/creating room
-  const handleJoinRoom = (id: string, creator: boolean, name: string, team?: 'green' | 'orange') => {
+  const handleJoinRoom = (id: string, creator: boolean, name: string) => {
     setRoomId(id);
     setIsCreator(creator);
     setPlayerName(name);
     
-    // If creator, default to green or don't show up? 
-    // Creator might want to be in the list. Let's assume creator is 'green' by default or we could ask.
-    // Lobby provides 'green' default for creator in our update.
-    const playerTeam = team || 'green';
+    // Assign team: Creator is Green (or random?), Joiners are Random
+    // Let's make everyone random to be fair, or keep creator as Green default?
+    // "teams should discied randomly" implies for everyone or at least competitors.
+    // I'll make it random for everyone including creator, or just creator green for simplicity.
+    // Let's make it random for everyone.
+    const playerTeam = Math.random() > 0.5 ? 'green' : 'orange';
 
     if (creator) {
       // Creator generates grid and pushes to Firebase
@@ -83,8 +85,7 @@ function App() {
         alert("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
       });
     } else {
-      // Joiner adds themselves to players list
-      // We use a unique key for each player based on timestamp/random to avoid collisions
+      // Joiner adds themselves to players list with random team
       const playerRef = ref(db, `rooms/${id}/players`);
       push(playerRef, { name, team: playerTeam });
     }
@@ -235,16 +236,49 @@ function App() {
   const boardGlow: CSSProperties = {}; // No shadows
 
   // Helper to generate deterministic positions for floating names
-  const getFloatingStyle = (name: string) => {
+  const getFloatingStyle = (name: string, zone: 'green-top' | 'green-bottom' | 'orange-left' | 'orange-right') => {
     // Simple deterministic "random" based on name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    // Top/Left percentages (keep away from edges)
-    const top = Math.abs(hash % 70) + 15; // 15% to 85%
-    const left = Math.abs((hash >> 3) % 70) + 15;
-    return { top: `${top}%`, left: `${left}%` };
+    
+    const rand1 = Math.abs(hash % 100) / 100; // 0 to 1
+    const rand2 = Math.abs((hash >> 3) % 100) / 100; // 0 to 1
+
+    // Adjust positions based on zone to ensure visibility within clip paths
+    switch(zone) {
+      case 'green-top':
+        // Top V shape. Keep vertically small (0-10%) and horizontally centered (20-80%)
+        return { 
+          top: `${5 + rand1 * 10}%`, 
+          left: `${15 + rand2 * 70}%`,
+          transform: `rotate(${rand1 * 20 - 10}deg)`
+        };
+      case 'green-bottom':
+        // Bottom V shape.
+        return { 
+          bottom: `${5 + rand1 * 10}%`, 
+          left: `${15 + rand2 * 70}%`,
+          transform: `rotate(${rand1 * 20 - 10}deg)`
+        };
+      case 'orange-left':
+        // Left side.
+        return { 
+          top: `${10 + rand1 * 80}%`, 
+          left: `${10 + rand2 * 40}%`, // Keep mostly to the left/outer side
+          transform: `rotate(${rand1 * 20 - 10}deg)`
+        };
+      case 'orange-right':
+        // Right side (container is flipped scaleX(-1))
+        // So 'left' here visually means 'right' edge of the screen
+        return { 
+          top: `${10 + rand1 * 80}%`, 
+          left: `${10 + rand2 * 40}%`,
+          transform: `rotate(${rand1 * 20 - 10}deg)` // Rotation might need counter-flip if text wasn't un-flipped
+        };
+    }
+    return {};
   };
 
   if (!roomId) {
@@ -259,25 +293,6 @@ function App() {
         <div className="pointer-events-auto">
           {isCreator && (
             <div className="flex flex-col gap-2">
-              {/* Player List - Modified to just show counts or minimized since names are floating? 
-                  Let's keep the list as a roster reference. */}
-              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow-lg text-gray-800 max-w-[200px]">
-                <h3 className="font-bold text-lg border-b border-gray-300 mb-1">المتسابقون ({players.length})</h3>
-                <div className="max-h-[150px] overflow-y-auto text-sm">
-                  {players.map((p, i) => (
-                    <div key={i} className={`
-                      flex justify-between 
-                      ${p.name === buzzer.playerName ? "font-bold animate-pulse" : ""}
-                    `}>
-                      <span>{p.name}</span>
-                      <span className={p.team === 'green' ? 'text-green-600' : 'text-orange-500'}>
-                        {p.team === 'green' ? '🟢' : '🟠'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
               {/* Buzzer Status for Host */}
               <div className={`px-6 py-4 rounded-xl shadow-lg transition-all transform ${buzzer.active ? 'bg-green-500 text-white scale-110' : 'bg-white/80 text-gray-500'}`}>
                 {buzzer.active ? (
@@ -369,7 +384,7 @@ function App() {
                  <div 
                    key={`green-top-${i}`} 
                    className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                   style={getFloatingStyle(p.name)}
+                   style={getFloatingStyle(p.name, 'green-top')}
                  >
                    {p.name}
                  </div>
@@ -389,7 +404,7 @@ function App() {
                  <div 
                    key={`green-bottom-${i}`} 
                    className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                   style={getFloatingStyle(p.name + "bottom")} // Different seed
+                   style={getFloatingStyle(p.name, 'green-bottom')} // Different seed
                  >
                    {p.name}
                  </div>
@@ -430,7 +445,7 @@ function App() {
                         <div 
                           key={`orange-left-${i}`} 
                           className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                          style={getFloatingStyle(p.name)}
+                          style={getFloatingStyle(p.name, 'orange-left')}
                         >
                           {p.name}
                         </div>
@@ -458,7 +473,7 @@ function App() {
                         <div 
                           key={`orange-right-${i}`} 
                           className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
-                          style={getFloatingStyle(p.name + "right")}
+                          style={getFloatingStyle(p.name, 'orange-right')}
                         >
                           {p.name}
                         </div>
