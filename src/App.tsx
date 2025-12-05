@@ -8,7 +8,7 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update } from 'firebase/database';
+import { ref, set, onValue, update, get } from 'firebase/database';
 
 // Add buzzer interface
 interface BuzzerState {
@@ -41,18 +41,14 @@ function App() {
 
   // Handle joining/creating room
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
-    setRoomId(id);
-    setIsCreator(creator);
-    setPlayerName(name);
-    
-    // Assign team: Creator is Green (or random?), Joiners are Random
-    // Let's make everyone random to be fair, or keep creator as Green default?
-    // "teams should discied randomly" implies for everyone or at least competitors.
-    // I'll make it random for everyone including creator, or just creator green for simplicity.
-    // Let's make it random for everyone.
+    // Assign team randomly for everyone
     const playerTeam = Math.random() > 0.5 ? 'green' : 'orange';
 
     if (creator) {
+      setRoomId(id);
+      setIsCreator(true);
+      setPlayerName(name);
+
       // Creator generates grid and pushes to Firebase
       const newGrid = generateHexGrid(ARABIC_LETTERS);
       console.log("Creating room:", id, "with grid:", newGrid.length, "cells");
@@ -78,20 +74,28 @@ function App() {
         alert("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
       });
     } else {
-      // Joiner adds themselves to players list with random team
-      // Use update() with consistent structure: object keyed by name (same as creator)
+      // Joiner: verify room exists before joining
       const roomRef = ref(db, `rooms/${id}`);
-      update(roomRef, {
-        [`players/${name}`]: { name, team: playerTeam }
-      }).catch((err: any) => {
-        console.error("Firebase Error (Join):", err);
-        console.error("Error code:", err.code);
-        if (err.code === 'PERMISSION_DENIED') {
-          alert("فشل في الانضمام للغرفة. تحقق من قواعد قاعدة البيانات.");
-        } else {
-          alert("فشل في الانضمام للغرفة. تحقق من رقم الغرفة والاتصال.");
-        }
-      });
+      get(roomRef)
+        .then((snapshot) => {
+          if (!snapshot.exists()) {
+            alert("الغرفة غير موجودة. تحقق من رقم الغرفة.");
+            return;
+          }
+
+          setRoomId(id);
+          setIsCreator(false);
+          setPlayerName(name);
+
+          return update(roomRef, {
+            [`players/${name}`]: { name, team: playerTeam }
+          });
+        })
+        .catch((err: any) => {
+          console.error("Firebase Error (Join):", err);
+          console.error("Error code:", err.code);
+          alert("فشل في الانضمام للغرفة. تحقق من الاتصال.");
+        });
     }
   };
 
