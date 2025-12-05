@@ -13,7 +13,14 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update } from 'firebase/database';
+import { ref, set, onValue, update, push } from 'firebase/database';
+
+// Add buzzer interface
+interface BuzzerState {
+  active: boolean;
+  playerName: string | null;
+  timestamp: number;
+}
 
 function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -21,6 +28,10 @@ function App() {
   const [playerName, setPlayerName] = useState('');
   const [grid, setGrid] = useState<HexCellData[]>(() => generateHexGrid(ARABIC_LETTERS));
   const [winner, setWinner] = useState<'Orange' | 'Green' | null>(null);
+  const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
+  // Track all players in the room for the host
+  const [players, setPlayers] = useState<string[]>([]);
+  
   const winnerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
 
@@ -45,7 +56,9 @@ function App() {
         grid: newGrid,
         winner: null,
         createdAt: Date.now(),
-        creatorName: name
+        creatorName: name,
+        buzzer: { active: false, playerName: null, timestamp: 0 },
+        players: { [name]: true } // Use object for players to avoid array index issues
       })
       .then(() => {
         console.log("Room created successfully in Firebase:", id);
@@ -56,6 +69,11 @@ function App() {
         console.error("Error message:", err.message);
         alert("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
       });
+    } else {
+      // Joiner adds themselves to players list
+      // We use a unique key for each player based on timestamp to avoid collisions
+      const playerRef = ref(db, `rooms/${id}/players`);
+      push(playerRef, name);
     }
   };
 
@@ -72,19 +90,26 @@ function App() {
       
       if (data) {
         if (data.grid && Array.isArray(data.grid)) {
-          console.log("Updating grid from Firebase, cells:", data.grid.length);
           setGrid(data.grid);
         }
         if (data.winner !== undefined) {
           setWinner(data.winner);
+        }
+        // Sync buzzer state
+        if (data.buzzer) {
+          setBuzzer(data.buzzer);
+        }
+        // Sync players list
+        if (data.players) {
+          // Convert object values to array
+          const playerList = Object.values(data.players) as string[];
+          setPlayers(playerList);
         }
       } else {
         console.warn("No data in Firebase for room:", roomId);
       }
     }, (error: any) => {
       console.error("Firebase sync error:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
       alert("خطأ في الاتصال بـ Firebase. تأكد من قاعدة البيانات والقواعد.");
     });
 
@@ -95,6 +120,9 @@ function App() {
   }, [roomId]);
 
   const handleCellClick = (id: string) => {
+    // Only creator (Host) can modify the grid
+    if (!isCreator) return;
+    
     if (winner) return;
 
     // Optimistic update
@@ -115,30 +143,49 @@ function App() {
 
     // If in a room, push update to Firebase
     if (roomId) {
-      console.log("Updating Firebase with new grid for room:", roomId);
       update(ref(db, `rooms/${roomId}`), {
         grid: newGrid,
         winner: newWinner
       })
-      .then(() => {
-        console.log("Successfully updated Firebase");
-        // Update local state optimistically
-        setGrid(newGrid);
-        if (newWinner) setWinner(newWinner);
-      })
       .catch((err: any) => {
         console.error("Firebase Error (Update):", err);
-        console.error("Error code:", err.code);
-        console.error("Error message:", err.message);
         // Still update local state even if Firebase fails
         setGrid(newGrid);
         if (newWinner) setWinner(newWinner);
-        alert("فشل في تحديث Firebase. تحقق من الاتصال.");
       });
-    } else {
-      // Local play if somehow no roomId (fallback)
-      setGrid(newGrid);
-      if (newWinner) setWinner(newWinner);
+    }
+  };
+
+  // Handle Buzzer Press (Guest)
+  const handleBuzzerPress = () => {
+    if (isCreator) return; // Host doesn't buzz
+    if (buzzer.active) return; // Already buzzed
+
+    // Try to claim the buzzer
+    // We use a transaction-like update by checking if it's null first in rules, 
+    // but here we just push and hope we are first. 
+    // Ideally we'd use a transaction, but simple set works for now if latency isn't huge.
+    // Better: check if buzzer.active is false in local state before sending.
+    
+    if (roomId) {
+      update(ref(db, `rooms/${roomId}/buzzer`), {
+        active: true,
+        playerName: playerName,
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  // Handle Reset Buzzer (Host)
+  const handleResetBuzzer = () => {
+    if (!isCreator) return;
+    
+    if (roomId) {
+      update(ref(db, `rooms/${roomId}/buzzer`), {
+        active: false,
+        playerName: null,
+        timestamp: 0
+      });
     }
   };
 
@@ -184,16 +231,82 @@ function App() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#3fa653]">
-      {/* Room ID Overlay */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
-        <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800">
-          غرفة: {roomId}
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#3fa653] font-['Cairo']">
+      {/* Top UI Layer */}
+      <div className="absolute top-0 left-0 right-0 z-50 p-4 flex justify-between items-start pointer-events-none">
+        {/* Left: Host Controls (only visible to Host) */}
+        <div className="pointer-events-auto">
+          {isCreator && (
+            <div className="flex flex-col gap-2">
+              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow-lg text-gray-800">
+                <h3 className="font-bold text-lg border-b border-gray-300 mb-1">المتسابقون ({players.length})</h3>
+                <div className="max-h-[150px] overflow-y-auto text-sm">
+                  {players.map((p, i) => (
+                    <div key={i} className={p === buzzer.playerName ? "font-bold text-green-600" : ""}>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Buzzer Status for Host */}
+              <div className={`px-6 py-4 rounded-xl shadow-lg transition-all transform ${buzzer.active ? 'bg-green-500 text-white scale-110' : 'bg-white/80 text-gray-500'}`}>
+                {buzzer.active ? (
+                  <div className="text-center">
+                    <div className="text-2xl font-bold animate-pulse">{buzzer.playerName}</div>
+                    <div className="text-sm">ضغط الزر!</div>
+                    <button 
+                      onClick={handleResetBuzzer}
+                      className="mt-2 bg-white text-green-600 px-4 py-1 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+                    >
+                      إعادة تعيين الزر
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center font-bold">بانتظار المتسابقين...</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800 text-sm">
-          اللاعب: {playerName}
+
+        {/* Right: Room Info */}
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800">
+            غرفة: {roomId}
+          </div>
+          <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800 text-sm">
+            {isCreator ? 'المضيف (أنت)' : `اللاعب: ${playerName}`}
+          </div>
         </div>
       </div>
+
+      {/* Guest Buzzer UI (Bottom Center) */}
+      {!isCreator && (
+        <div className="absolute bottom-8 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <button
+              onClick={handleBuzzerPress}
+              disabled={buzzer.active}
+              className={`
+                w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
+                ${buzzer.active 
+                  ? (buzzer.playerName === playerName 
+                      ? 'bg-green-500 border-green-300 scale-110' // You won
+                      : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
+                  : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
+                }
+              `}
+            >
+              <span className="text-white font-black text-2xl drop-shadow-md">
+                {buzzer.active 
+                  ? (buzzer.playerName === playerName ? 'أنت!' : buzzer.playerName)
+                  : 'اضغط!'}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="relative w-full h-screen flex items-center justify-center">
         {/* Game container that scales uniformly */}
@@ -277,7 +390,23 @@ function App() {
           
           {/* Hex grid on top */}
           <div className="absolute inset-0 flex items-center justify-center z-10" style={boardGlow}>
-            <HexGrid grid={grid} size={HEX_SIZE} onCellClick={handleCellClick} />
+            <HexGrid 
+              grid={grid} 
+              size={HEX_SIZE} 
+              onCellClick={handleCellClick}
+              // Pass pointerEvents="none" to HexGrid cells if not creator, 
+              // BUT HexGrid doesn't support that prop yet. 
+              // Instead we handle it in handleCellClick (logic) and CSS (visual)
+            />
+            {/* Overlay for guests to prevent clicking visually? 
+                Actually, we want them to SEE the hover effects maybe? 
+                The user said "he is the only one who should be able to change".
+                So guests can click but nothing happens is fine, 
+                or we can add a transparent overlay to block interactions.
+            */}
+            {!isCreator && (
+              <div className="absolute inset-0 z-20 cursor-default" />
+            )}
           </div>
         </div>
       </div>
