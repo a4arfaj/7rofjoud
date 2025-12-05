@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import logoImage from '../assets/noback7rof.png';
 
 interface LobbyProps {
-  onJoinRoom: (roomId: string, isCreator: boolean, playerName: string) => void;
+  onJoinRoom: (roomId: string, isCreator: boolean, playerName: string, team?: 'green' | 'orange') => void;
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   const [roomId, setRoomId] = useState('');
   const [playerName, setPlayerName] = useState('');
+  const [selectedTeam, setSelectedTeam] = useState<'green' | 'orange'>('green');
   const [error, setError] = useState('');
 
   const validateAndProceed = (action: () => void) => {
@@ -23,7 +24,8 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
     validateAndProceed(() => {
       // Generate a random 4-digit room ID
       const newRoomId = Math.floor(1000 + Math.random() * 9000).toString();
-      onJoinRoom(newRoomId, true, playerName);
+      // Host doesn't strictly need a team, but we can default or let them choose if they play
+      onJoinRoom(newRoomId, true, playerName, 'green'); 
     });
   };
 
@@ -33,7 +35,7 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
         setError('ادخل رقم الغرفة');
         return;
       }
-      onJoinRoom(roomId, false, playerName);
+      onJoinRoom(roomId, false, playerName, selectedTeam);
     });
   };
 
@@ -79,6 +81,29 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
 
           {/* Enter Room Section */}
           <div className="space-y-3">
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => setSelectedTeam('green')}
+                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                  selectedTeam === 'green' 
+                    ? 'bg-[#3ecf5e] text-white ring-2 ring-white' 
+                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                }`}
+              >
+                الفريق الأخضر
+              </button>
+              <button
+                onClick={() => setSelectedTeam('orange')}
+                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                  selectedTeam === 'orange' 
+                    ? 'bg-[#f4841f] text-white ring-2 ring-white' 
+                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                }`}
+              >
+                الفريق البرتقالي
+              </button>
+            </div>
+
             <input
               type="text"
               value={roomId}

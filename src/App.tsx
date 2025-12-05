@@ -22,6 +22,12 @@ interface BuzzerState {
   timestamp: number;
 }
 
+// Add player interface
+interface Player {
+  name: string;
+  team: 'green' | 'orange';
+}
+
 function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isCreator, setIsCreator] = useState(false);
@@ -30,7 +36,7 @@ function App() {
   const [winner, setWinner] = useState<'Orange' | 'Green' | null>(null);
   const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   // Track all players in the room for the host
-  const [players, setPlayers] = useState<string[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   
   const winnerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
@@ -41,10 +47,15 @@ function App() {
   const orangeInnerEdgeLength = isSmallScreen ? 5 : ORANGE_INNER_EDGE_LENGTH;
 
   // Handle joining/creating room
-  const handleJoinRoom = (id: string, creator: boolean, name: string) => {
+  const handleJoinRoom = (id: string, creator: boolean, name: string, team?: 'green' | 'orange') => {
     setRoomId(id);
     setIsCreator(creator);
     setPlayerName(name);
+    
+    // If creator, default to green or don't show up? 
+    // Creator might want to be in the list. Let's assume creator is 'green' by default or we could ask.
+    // Lobby provides 'green' default for creator in our update.
+    const playerTeam = team || 'green';
 
     if (creator) {
       // Creator generates grid and pushes to Firebase
@@ -52,13 +63,15 @@ function App() {
       console.log("Creating room:", id, "with grid:", newGrid.length, "cells");
       setGrid(newGrid); // Set local state immediately
       
+      const initialPlayer = { name, team: playerTeam };
+      
       set(ref(db, `rooms/${id}`), {
         grid: newGrid,
         winner: null,
         createdAt: Date.now(),
         creatorName: name,
         buzzer: { active: false, playerName: null, timestamp: 0 },
-        players: { [name]: true } // Use object for players to avoid array index issues
+        players: { [name]: initialPlayer } // Store as object key->value
       })
       .then(() => {
         console.log("Room created successfully in Firebase:", id);
@@ -71,9 +84,9 @@ function App() {
       });
     } else {
       // Joiner adds themselves to players list
-      // We use a unique key for each player based on timestamp to avoid collisions
+      // We use a unique key for each player based on timestamp/random to avoid collisions
       const playerRef = ref(db, `rooms/${id}/players`);
-      push(playerRef, name);
+      push(playerRef, { name, team: playerTeam });
     }
   };
 
@@ -102,7 +115,8 @@ function App() {
         // Sync players list
         if (data.players) {
           // Convert object values to array
-          const playerList = Object.values(data.players) as string[];
+          // Data might be { "key1": {name: "A", team: "green"}, "key2": ... }
+          const playerList = Object.values(data.players) as Player[];
           setPlayers(playerList);
         }
       } else {
@@ -161,12 +175,6 @@ function App() {
     if (isCreator) return; // Host doesn't buzz
     if (buzzer.active) return; // Already buzzed
 
-    // Try to claim the buzzer
-    // We use a transaction-like update by checking if it's null first in rules, 
-    // but here we just push and hope we are first. 
-    // Ideally we'd use a transaction, but simple set works for now if latency isn't huge.
-    // Better: check if buzzer.active is false in local state before sending.
-    
     if (roomId) {
       update(ref(db, `rooms/${roomId}/buzzer`), {
         active: true,
@@ -226,6 +234,19 @@ function App() {
 
   const boardGlow: CSSProperties = {}; // No shadows
 
+  // Helper to generate deterministic positions for floating names
+  const getFloatingStyle = (name: string) => {
+    // Simple deterministic "random" based on name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Top/Left percentages (keep away from edges)
+    const top = Math.abs(hash % 70) + 15; // 15% to 85%
+    const left = Math.abs((hash >> 3) % 70) + 15;
+    return { top: `${top}%`, left: `${left}%` };
+  };
+
   if (!roomId) {
     return <Lobby onJoinRoom={handleJoinRoom} />;
   }
@@ -238,12 +259,20 @@ function App() {
         <div className="pointer-events-auto">
           {isCreator && (
             <div className="flex flex-col gap-2">
-              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow-lg text-gray-800">
+              {/* Player List - Modified to just show counts or minimized since names are floating? 
+                  Let's keep the list as a roster reference. */}
+              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl shadow-lg text-gray-800 max-w-[200px]">
                 <h3 className="font-bold text-lg border-b border-gray-300 mb-1">المتسابقون ({players.length})</h3>
                 <div className="max-h-[150px] overflow-y-auto text-sm">
                   {players.map((p, i) => (
-                    <div key={i} className={p === buzzer.playerName ? "font-bold text-green-600" : ""}>
-                      {p}
+                    <div key={i} className={`
+                      flex justify-between 
+                      ${p.name === buzzer.playerName ? "font-bold animate-pulse" : ""}
+                    `}>
+                      <span>{p.name}</span>
+                      <span className={p.team === 'green' ? 'text-green-600' : 'text-orange-500'}>
+                        {p.team === 'green' ? '🟢' : '🟠'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -334,6 +363,19 @@ function App() {
                 clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
               }}
             />
+            {/* Floating Names in Green Zone (Top) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+               {players.filter(p => p.team === 'green').slice(0, Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i) => (
+                 <div 
+                   key={`green-top-${i}`} 
+                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
+                   style={getFloatingStyle(p.name)}
+                 >
+                   {p.name}
+                 </div>
+               ))}
+            </div>
+
             <div
               className="absolute inset-0"
               style={{
@@ -341,6 +383,18 @@ function App() {
                 clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
               }}
             />
+             {/* Floating Names in Green Zone (Bottom) */}
+             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+               {players.filter(p => p.team === 'green').slice(Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i) => (
+                 <div 
+                   key={`green-bottom-${i}`} 
+                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
+                   style={getFloatingStyle(p.name + "bottom")} // Different seed
+                 >
+                   {p.name}
+                 </div>
+               ))}
+            </div>
           </div>
           
           {/* Orange zones wrapper - extends to viewport edges, ON TOP of green (z-index 5) */}
@@ -369,7 +423,21 @@ function App() {
                       backgroundColor: '#f4841f',
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                     }}
-                  />
+                  >
+                    {/* Floating Names in Orange Zone (Left) */}
+                    <div className="relative w-full h-full overflow-hidden">
+                      {players.filter(p => p.team === 'orange').slice(0, Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i) => (
+                        <div 
+                          key={`orange-left-${i}`} 
+                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
+                          style={getFloatingStyle(p.name)}
+                        >
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Right orange zone */}
                   <div
                     className="absolute"
@@ -382,7 +450,21 @@ function App() {
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                       transform: 'scaleX(-1)'
                     }}
-                  />
+                  >
+                    {/* Floating Names in Orange Zone (Right) */}
+                    {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
+                    <div className="relative w-full h-full overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
+                       {players.filter(p => p.team === 'orange').slice(Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i) => (
+                        <div 
+                          key={`orange-right-${i}`} 
+                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-2 rounded-full whitespace-nowrap text-sm md:text-base animate-pulse"
+                          style={getFloatingStyle(p.name + "right")}
+                        >
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               );
             })()}
@@ -394,16 +476,7 @@ function App() {
               grid={grid} 
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
-              // Pass pointerEvents="none" to HexGrid cells if not creator, 
-              // BUT HexGrid doesn't support that prop yet. 
-              // Instead we handle it in handleCellClick (logic) and CSS (visual)
             />
-            {/* Overlay for guests to prevent clicking visually? 
-                Actually, we want them to SEE the hover effects maybe? 
-                The user said "he is the only one who should be able to change".
-                So guests can click but nothing happens is fine, 
-                or we can add a transparent overlay to block interactions.
-            */}
             {!isCreator && (
               <div className="absolute inset-0 z-20 cursor-default" />
             )}
