@@ -341,7 +341,7 @@ function App() {
       {!isCreator ? (
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
            {/* Top Frame: Game Board & Zones */}
-           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
+           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden border-l-4 border-r-4 border-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3),_-4px_0_20px_rgba(0,0,0,0.3)]">
               {/* Game container that scales uniformly - scaled down slightly for guest view */}
               <div 
                 className="relative"
