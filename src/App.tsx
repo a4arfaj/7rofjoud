@@ -13,7 +13,7 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update, push } from 'firebase/database';
+import { ref, set, onValue, update } from 'firebase/database';
 
 // Add buzzer interface
 interface BuzzerState {
@@ -86,8 +86,19 @@ function App() {
       });
     } else {
       // Joiner adds themselves to players list with random team
-      const playerRef = ref(db, `rooms/${id}/players`);
-      push(playerRef, { name, team: playerTeam });
+      // Use update() with consistent structure: object keyed by name (same as creator)
+      const roomRef = ref(db, `rooms/${id}`);
+      update(roomRef, {
+        [`players/${name}`]: { name, team: playerTeam }
+      }).catch((err: any) => {
+        console.error("Firebase Error (Join):", err);
+        console.error("Error code:", err.code);
+        if (err.code === 'PERMISSION_DENIED') {
+          alert("فشل في الانضمام للغرفة. تحقق من قواعد قاعدة البيانات.");
+        } else {
+          alert("فشل في الانضمام للغرفة. تحقق من رقم الغرفة والاتصال.");
+        }
+      });
     }
   };
 
@@ -116,8 +127,13 @@ function App() {
         // Sync players list
         if (data.players) {
           // Convert object values to array
-          // Data might be { "key1": {name: "A", team: "green"}, "key2": ... }
-          const playerList = Object.values(data.players) as Player[];
+          // Handle both formats: object with name keys or array-like with auto-keys
+          let playerList: Player[] = [];
+          if (typeof data.players === 'object') {
+            playerList = Object.values(data.players).filter((p: any) => 
+              p && typeof p === 'object' && p.name && p.team
+            ) as Player[];
+          }
           setPlayers(playerList);
         }
       } else {
@@ -325,10 +341,10 @@ function App() {
 
         {/* Right: Room Info */}
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <div className="bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800">
+          <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white">
             غرفة: {toArabicNumerals(roomId)}
           </div>
-          <div className="bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800 text-sm">
+          <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white text-sm">
             {isCreator ? 'المضيف (أنت)' : `اللاعب: ${playerName}`}
           </div>
         </div>
