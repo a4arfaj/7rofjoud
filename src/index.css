@@ -13,6 +13,18 @@ body {
   -ms-user-select: none;
 }
 
+/* Yellow state animation - transitions from white-ish yellow to full yellow */
+@keyframes yellow-fade-in {
+  0% {
+    fill: #fff9e6; /* Very light yellow/white */
+    opacity: 0.5;
+  }
+  100% {
+    fill: #ffd700; /* Full yellow */
+    opacity: 1;
+  }
+}
+
 /* Glowing yellow pulsing animation for selected cells */
 @keyframes glow-pulse {
   0%, 100% {
@@ -35,7 +47,7 @@ body {
 }
 
 .glowing-yellow {
-  animation: glow-pulse 1.5s ease-in-out infinite;
+  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse 1.5s ease-in-out 0.3s infinite;
 }
 
 .glowing-yellow-glow {

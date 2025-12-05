@@ -258,10 +258,26 @@ function App() {
     // Only creator (Host) can modify the grid
     if (!isCreator) return;
 
+    // Find the clicked cell's current state
+    const clickedCell = grid.find(cell => cell.id === id);
+    if (!clickedCell) return;
+
+    // Calculate new state for clicked cell
+    const newState = (clickedCell.state + 1) % 4 as 0 | 1 | 2 | 3;
+
     // Allow free editing - cycle through 4 states: 0 (white) -> 1 (yellow) -> 2 (orange) -> 3 (green) -> 0
+    // Special rule: Only one cell can be yellow at a time
     const newGrid = grid.map(cell => {
       if (cell.id === id) {
-        return { ...cell, state: (cell.state + 1) % 4 as 0 | 1 | 2 | 3 };
+        // If clicking to make it yellow, ensure no other cell is yellow
+        if (newState === 1) {
+          return { ...cell, state: 1 as 0 | 1 | 2 | 3 };
+        }
+        return { ...cell, state: newState };
+      }
+      // If clicked cell is becoming yellow, turn any other yellow cell back to white
+      if (newState === 1 && cell.state === 1) {
+        return { ...cell, state: 0 as 0 | 1 | 2 | 3 };
       }
       return cell;
     });

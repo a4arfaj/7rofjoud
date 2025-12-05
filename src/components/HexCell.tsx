@@ -16,7 +16,7 @@ function HexCell({ cell, size, layoutSize, onClick }: HexCellProps) {
 
   let fillColor = '#ffffff';
   if (cell.state === 1) {
-    fillColor = '#ffd700'; // Yellow
+    fillColor = '#fff9e6'; // Start with white-ish yellow for animation
   } else if (cell.state === 2) {
     fillColor = '#f9a826'; // Orange
   } else if (cell.state === 3) {
@@ -42,7 +42,7 @@ function HexCell({ cell, size, layoutSize, onClick }: HexCellProps) {
         fill={fillColor}
         stroke="#000000"
         strokeWidth={5}
-        className={`transition-[fill] duration-200 ${cell.state === 1 ? 'glowing-yellow' : ''}`}
+        className={cell.state === 1 ? 'glowing-yellow' : 'transition-[fill] duration-200'}
       />
       <text
         x={x}
