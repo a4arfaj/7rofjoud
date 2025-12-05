@@ -3,9 +3,10 @@ import logoImage from '../assets/noback7rof.png';
 
 interface LobbyProps {
   onJoinRoom: (roomId: string, isCreator: boolean, playerName: string) => void;
+  roomError?: string;
 }
 
-const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
+const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, roomError }) => {
   const [roomId, setRoomId] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
@@ -80,9 +81,16 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
           {/* Enter Room Section */}
           <div className="space-y-3">
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
+              onChange={(e) => {
+                // Only allow numbers
+                const value = e.target.value.replace(/[^0-9]/g, '');
+                setRoomId(value);
+                setError(''); // Clear error when user types
+              }}
               placeholder="رقم الغرفة"
               className="w-full px-4 py-3 bg-white/90 text-gray-800 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-[#f4841f] text-center placeholder-gray-500"
             />
@@ -92,7 +100,11 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
             >
               ادخل غرفة
             </button>
-            {error && <p className="text-red-200 text-center font-bold mt-2 bg-red-500/20 py-2 rounded-lg">{error}</p>}
+            {(error || roomError) && (
+              <p className="text-red-200 text-center font-bold mt-2 bg-red-500/20 py-2 rounded-lg">
+                {error || roomError}
+              </p>
+            )}
           </div>
         </div>
       </div>

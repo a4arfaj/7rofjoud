@@ -31,6 +31,7 @@ function App() {
   const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
+  const [roomError, setRoomError] = useState<string>('');
   
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
 
@@ -41,6 +42,9 @@ function App() {
 
   // Handle joining/creating room
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
+    // Clear any previous errors
+    setRoomError('');
+    
     // Assign team randomly for everyone
     const playerTeam = Math.random() > 0.5 ? 'green' : 'orange';
 
@@ -71,7 +75,11 @@ function App() {
         console.error("Firebase Error (Create):", err);
         console.error("Error code:", err.code);
         console.error("Error message:", err.message);
-        alert("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
+        setRoomError("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
+        // Reset room state on error
+        setRoomId(null);
+        setIsCreator(false);
+        setPlayerName('');
       });
     } else {
       // Joiner: verify room exists before joining
@@ -79,13 +87,14 @@ function App() {
       get(roomRef)
         .then((snapshot) => {
           if (!snapshot.exists()) {
-            alert("الغرفة غير موجودة. تحقق من رقم الغرفة.");
+            setRoomError("لا غرفة بهذا الرقم");
             return;
           }
 
           setRoomId(id);
           setIsCreator(false);
           setPlayerName(name);
+          setRoomError(''); // Clear error on successful join
 
           return update(roomRef, {
             [`players/${name}`]: { name, team: playerTeam }
@@ -94,7 +103,7 @@ function App() {
         .catch((err: any) => {
           console.error("Firebase Error (Join):", err);
           console.error("Error code:", err.code);
-          alert("فشل في الانضمام للغرفة. تحقق من الاتصال.");
+          setRoomError("فشل في الانضمام للغرفة. تحقق من الاتصال.");
         });
     }
   };
@@ -268,7 +277,7 @@ function App() {
   };
 
   if (!roomId) {
-    return <Lobby onJoinRoom={handleJoinRoom} />;
+    return <Lobby onJoinRoom={handleJoinRoom} roomError={roomError} />;
   }
 
   return (
