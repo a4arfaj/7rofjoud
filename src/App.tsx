@@ -342,9 +342,153 @@ function App() {
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
            {/* Top Frame: Game Board & Zones */}
            <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
+              {/* Frame borders - positioned closer to grid */}
+              <div className="absolute inset-0 z-40 pointer-events-none">
+                {/* Left border */}
+                <div className="absolute left-[5%] top-[5%] bottom-[5%] w-[4px] bg-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3)]" />
+                {/* Right border */}
+                <div className="absolute right-[5%] top-[5%] bottom-[5%] w-[4px] bg-white/20 shadow-[-4px_0_20px_rgba(0,0,0,0.3)]" />
+                {/* Top border */}
+                <div className="absolute top-[5%] left-[5%] right-[5%] h-[4px] bg-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]" />
+              </div>
+
+              {/* Zones container - extends from frame borders */}
+              <div 
+                className="absolute z-[1]"
+                style={{
+                  left: '5%',
+                  right: '5%',
+                  top: '5%',
+                  bottom: '5%'
+                }}
+              >
+                {/* Base purple background */}
+                <div className="absolute inset-0 bg-[#5e35b1]" />
+                
+                {/* Green zones at top and bottom - fill from frame edges */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: '#3fa653',
+                    clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
+                  }}
+                />
+                {/* Floating Names in Green Zone (Top) */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+                   {players.filter(p => p.team === 'green' && p.name !== hostName)
+                   .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                     <div 
+                       key={`green-top-${i}`} 
+                       className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                       style={getFloatingStyle(i, arr.length, 'green-top')}
+                     >
+                       {p.name}
+                     </div>
+                   ))}
+                </div>
+
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: '#3fa653',
+                    clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
+                  }}
+                />
+                 {/* Floating Names in Green Zone (Bottom) */}
+                 <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+                   {players.filter(p => p.team === 'green' && p.name !== hostName)
+                   .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                     <div 
+                       key={`green-bottom-${i}`} 
+                       className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                       style={getFloatingStyle(i, arr.length, 'green-bottom')}
+                     >
+                       {p.name}
+                     </div>
+                   ))}
+                </div>
+              </div>
+
+              {/* Orange zones - constrained to frame area, ON TOP of green (z-index 5) */}
+              <div 
+                className="absolute z-[5] pointer-events-none"
+                style={{
+                  left: '5%',
+                  right: '5%',
+                  top: '5%',
+                  bottom: '5%'
+                }}
+              >
+                {/* Calculate inner edge positions based on responsive length parameter */}
+                {(() => {
+                  // Inner edge spans orangeInnerEdgeLength% of height, centered
+                  const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
+                  const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
+                  return (
+                    <>
+                      {/* Left orange zone */}
+                      <div
+                        className="absolute"
+                        style={{
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: `${orangeZoneDistance}%`,
+                          backgroundColor: '#f4841f',
+                          clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
+                        }}
+                      >
+                        {/* Floating Names in Orange Zone (Left) */}
+                        <div className="relative w-full h-full overflow-hidden z-30">
+                          {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                          .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                            <div 
+                              key={`orange-left-${i}`} 
+                              className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                              style={getFloatingStyle(i, arr.length, 'orange-left')}
+                            >
+                              {p.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right orange zone */}
+                      <div
+                        className="absolute"
+                        style={{
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: `${orangeZoneDistance}%`,
+                          backgroundColor: '#f4841f',
+                          clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
+                          transform: 'scaleX(-1)'
+                        }}
+                      >
+                        {/* Floating Names in Orange Zone (Right) */}
+                        {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
+                        <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
+                           {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                           .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                            <div 
+                              key={`orange-right-${i}`} 
+                              className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                              style={getFloatingStyle(i, arr.length, 'orange-right')}
+                            >
+                              {p.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
               {/* Game container that scales uniformly - scaled down slightly for guest view */}
               <div 
-                className="relative border-l-4 border-r-4 border-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3),_-4px_0_20px_rgba(0,0,0,0.3)]"
+                className="relative z-10"
                 style={{
                   width: 'min(90vw, 60vh)', // Reduced height constraint for guests
                   height: 'min(90vw, 60vh)',
@@ -354,142 +498,8 @@ function App() {
                   overflow: 'visible'
                 }}
               >
-                {/* Background zones inside the container - green (z-index 1) */}
-                <div className="absolute inset-0 z-[1]">
-                  {/* Base green background - purple for guest UI background, but zones are inside this container */}
-                  {/* The user wants "background should be in purple". The top frame background is now purple (#5e35b1). */}
-                  {/* But this inner div has bg-[#3fa653]. Let's change it to transparent or purple, but keep zones. */}
-                  {/* Wait, the zones clip paths rely on a base background? No, they are absolute divs. */}
-                  {/* The base background here was #3fa653 (green). If we change it to purple, the gaps will be purple. */}
-                  <div className="absolute inset-0 bg-[#5e35b1]" />
-                  
-                  {/* Green zones at top and bottom - full width rectangles */}
-                  <div
-                    className="absolute"
-                    style={{
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      height: `${GREEN_ZONE_DISTANCE}%`,
-                      backgroundColor: '#3fa653'
-                    }}
-                  />
-                  {/* Floating Names in Green Zone (Top) */}
-                  <div className="absolute overflow-hidden pointer-events-none z-30" style={{ left: 0, right: 0, top: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
-                     {players.filter(p => p.team === 'green' && p.name !== hostName)
-                     .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                       <div 
-                         key={`green-top-${i}`} 
-                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                         style={getFloatingStyle(i, arr.length, 'green-top')}
-                       >
-                         {p.name}
-                       </div>
-                     ))}
-                  </div>
-
-                  <div
-                    className="absolute"
-                    style={{
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: `${GREEN_ZONE_DISTANCE}%`,
-                      backgroundColor: '#3fa653'
-                    }}
-                  />
-                   {/* Floating Names in Green Zone (Bottom) */}
-                   <div className="absolute overflow-hidden pointer-events-none z-30" style={{ left: 0, right: 0, bottom: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
-                     {players.filter(p => p.team === 'green' && p.name !== hostName)
-                     .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                       <div 
-                         key={`green-bottom-${i}`} 
-                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                         style={getFloatingStyle(i, arr.length, 'green-bottom')}
-                       >
-                         {p.name}
-                       </div>
-                     ))}
-                  </div>
-                </div>
-                
-                {/* Orange zones wrapper - extends to viewport edges, ON TOP of green (z-index 5) */}
-                <div className="absolute z-[5]" style={{ 
-                  left: 'calc(-50vw + 50%)', 
-                  top: 'calc(-50vh + 50%)',
-                  width: '100vw',
-                  height: '100vh',
-                  pointerEvents: 'none'
-                }}>
-                  {/* Calculate inner edge positions based on responsive length parameter */}
-                  {(() => {
-                    // Inner edge spans orangeInnerEdgeLength% of height, centered
-                    const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
-                    const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
-                    return (
-                      <>
-                        {/* Left orange zone */}
-                        <div
-                          className="absolute"
-                          style={{
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: `calc(2.5vw + ${orangeZoneDistance}%)`,
-                            backgroundColor: '#f4841f',
-                            clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
-                          }}
-                        >
-                          {/* Floating Names in Orange Zone (Left) */}
-                          <div className="relative w-full h-full overflow-hidden z-30">
-                            {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                            .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                              <div 
-                                key={`orange-left-${i}`} 
-                                className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                                style={getFloatingStyle(i, arr.length, 'orange-left')}
-                              >
-                                {p.name}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Right orange zone */}
-                        <div
-                          className="absolute"
-                          style={{
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: `calc(2.5vw + ${orangeZoneDistance}%)`,
-                            backgroundColor: '#f4841f',
-                            clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
-                            transform: 'scaleX(-1)'
-                          }}
-                        >
-                          {/* Floating Names in Orange Zone (Right) */}
-                          {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
-                          <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
-                             {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                             .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                              <div 
-                                key={`orange-right-${i}`} 
-                                className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                                style={getFloatingStyle(i, arr.length, 'orange-right')}
-                              >
-                                {p.name}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-                
                 {/* Hex grid on top */}
-                <div className="absolute inset-0 flex items-center justify-center z-10" style={boardGlow}>
+                <div className="absolute inset-0 flex items-center justify-center" style={boardGlow}>
                   <HexGrid 
                     grid={grid} 
                     size={HEX_SIZE} 
@@ -543,19 +553,16 @@ function App() {
             {/* Base green background */}
             <div className="absolute inset-0 bg-[#3fa653]" />
             
-            {/* Green zones at top and bottom - full width rectangles */}
+            {/* Green zones at top and bottom - angled/diagonal */}
             <div
-              className="absolute"
+              className="absolute inset-0"
               style={{
-                left: 0,
-                right: 0,
-                top: 0,
-                height: `${GREEN_ZONE_DISTANCE}%`,
-                backgroundColor: '#3fa653'
+                backgroundColor: '#3fa653',
+                clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
               }}
             />
             {/* Floating Names in Green Zone (Top) */}
-            <div className="absolute overflow-hidden pointer-events-none" style={{ left: 0, right: 0, top: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
@@ -569,17 +576,14 @@ function App() {
             </div>
 
             <div
-              className="absolute"
+              className="absolute inset-0"
               style={{
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: `${GREEN_ZONE_DISTANCE}%`,
-                backgroundColor: '#3fa653'
+                backgroundColor: '#3fa653',
+                clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
               }}
             />
              {/* Floating Names in Green Zone (Bottom) */}
-             <div className="absolute overflow-hidden pointer-events-none" style={{ left: 0, right: 0, bottom: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
+             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
