@@ -39,7 +39,7 @@ function App() {
   // Responsive orange zone parameters - use smaller values when width < 430px
   const isSmallScreen = viewportWidth < 430;
   const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
-  const orangeInnerEdgeLength = isSmallScreen ? 20 : ORANGE_INNER_EDGE_LENGTH;
+  const orangeInnerEdgeLength = isSmallScreen ? 35 : ORANGE_INNER_EDGE_LENGTH;
 
   // Handle joining/creating room
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
