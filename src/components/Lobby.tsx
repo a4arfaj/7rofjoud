@@ -38,12 +38,12 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#3fa653] font-['Cairo'] text-white p-2" dir="rtl">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#3fa653] font-['Cairo'] text-white p-0.5" dir="rtl">
       {/* Logo */}
       <img 
         src={logoImage} 
         alt="حروف مع جود" 
-        className="mb-4 max-w-[600px] w-full h-auto drop-shadow-2xl"
+        className="mb-0 max-w-[600px] w-full h-auto drop-shadow-2xl"
         style={{ maxHeight: '250px', objectFit: 'contain' }}
       />
       
