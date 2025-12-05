@@ -36,16 +36,29 @@ function App() {
   
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Responsive orange zone parameters - use smaller values when width < 430px
   const isSmallScreen = viewportWidth < 430;
   const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
   const orangeInnerEdgeLength = isSmallScreen ? 39 : ORANGE_INNER_EDGE_LENGTH;
 
+  // Initialize audio context on first user interaction
+  const getAudioContext = async () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    // Resume context if suspended (required by browser autoplay policy)
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  };
+
   // Sound functions using Web Audio API
-  const playBuzzSound = () => {
+  const playBuzzSound = async () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = await getAudioContext();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -65,9 +78,9 @@ function App() {
     }
   };
 
-  const playWinSound = () => {
+  const playWinSound = async () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = await getAudioContext();
       
       // Play a sequence of notes for win sound
       const notes = [523.25, 659.25, 783.99]; // C, E, G (C major chord)
