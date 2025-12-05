@@ -260,34 +260,34 @@ function App() {
       offset = (index - (total - 1) / 2) * spacing;
     }
 
-    // Adjust positions based on zone - more centralized
+    // Adjust positions based on zone - more centralized, moved further away from grid
     switch(zone) {
       case 'green-top':
-        // Top V shape - centered horizontally around 50%, small vertical offset
+        // Top V shape - centered horizontally around 50%, moved further up (35% instead of 40%)
         return { 
-          top: '40%', 
+          top: '35%', 
           left: `calc(50% + ${offset}%)`,
           transform: 'translateX(-50%)'
         };
       case 'green-bottom':
-        // Bottom V shape - centered horizontally
+        // Bottom V shape - centered horizontally, moved further down (35% instead of 40%)
         return { 
-          bottom: '40%', 
+          bottom: '35%', 
           left: `calc(50% + ${offset}%)`,
           transform: 'translateX(-50%)'
         };
       case 'orange-left':
-        // Left side - centered vertically around 50%, positioned in center of zone width
+        // Left side - centered vertically around 50%, moved further left (40% instead of 50%)
         return { 
           top: `calc(50% + ${offset}%)`, 
-          left: '50%',
+          left: '40%',
           transform: 'translate(-50%, -50%)'
         };
       case 'orange-right':
-        // Right side - centered vertically
+        // Right side - centered vertically, moved further right (40% instead of 50%)
         return { 
           top: `calc(50% + ${offset}%)`, 
-          left: '50%',
+          left: '40%',
           transform: 'translate(-50%, -50%)'
         };
     }
@@ -339,9 +339,9 @@ function App() {
 
       {/* Guest Layout: Honeycomb/Zones in Top Frame, Buzzer in Bottom Frame with Padding */}
       {!isCreator ? (
-        <div className="flex flex-col h-screen w-full overflow-hidden">
+        <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
            {/* Top Frame: Game Board & Zones */}
-           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden bg-[#3fa653]">
+           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
               {/* Game container that scales uniformly - scaled down slightly for guest view */}
               <div 
                 className="relative"
@@ -356,8 +356,12 @@ function App() {
               >
                 {/* Background zones inside the container - green (z-index 1) */}
                 <div className="absolute inset-0 z-[1]">
-                  {/* Base green background */}
-                  <div className="absolute inset-0 bg-[#3fa653]" />
+                  {/* Base green background - purple for guest UI background, but zones are inside this container */}
+                  {/* The user wants "background should be in purple". The top frame background is now purple (#5e35b1). */}
+                  {/* But this inner div has bg-[#3fa653]. Let's change it to transparent or purple, but keep zones. */}
+                  {/* Wait, the zones clip paths rely on a base background? No, they are absolute divs. */}
+                  {/* The base background here was #3fa653 (green). If we change it to purple, the gaps will be purple. */}
+                  <div className="absolute inset-0 bg-[#5e35b1]" />
                   
                   {/* Green zones at top and bottom - angled/diagonal */}
                   <div
@@ -491,7 +495,7 @@ function App() {
            </div>
 
            {/* Bottom Frame: Buzzer */}
-           <div className="flex-shrink-0 w-full bg-[#3fa653] pb-8 pt-4 flex justify-center items-center z-50">
+           <div className="flex-shrink-0 w-full bg-[#5e35b1] pb-8 pt-4 flex justify-center items-center z-50 border-t-4 border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
               <button
                 onClick={handleBuzzerPress}
                 disabled={buzzer.active}
@@ -542,7 +546,7 @@ function App() {
               }}
             />
             {/* Floating Names in Green Zone (Top) */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
@@ -563,7 +567,7 @@ function App() {
               }}
             />
              {/* Floating Names in Green Zone (Bottom) */}
-             <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
@@ -605,7 +609,7 @@ function App() {
                     }}
                   >
                     {/* Floating Names in Orange Zone (Left) */}
-                    <div className="relative w-full h-full overflow-hidden z-30">
+                    <div className="relative w-full h-full overflow-hidden">
                       {players.filter(p => p.team === 'orange' && p.name !== hostName)
                       .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                         <div 
@@ -634,7 +638,7 @@ function App() {
                   >
                     {/* Floating Names in Orange Zone (Right) */}
                     {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
-                    <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
+                    <div className="relative w-full h-full overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
                        {players.filter(p => p.team === 'orange' && p.name !== hostName)
                        .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                         <div 
