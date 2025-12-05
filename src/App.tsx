@@ -8,7 +8,7 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update, get, onDisconnect } from 'firebase/database';
+import { ref, set, onValue, update, get, onDisconnect, runTransaction } from 'firebase/database';
 
 // Add buzzer interface
 interface BuzzerState {
@@ -39,7 +39,7 @@ function App() {
   // Responsive orange zone parameters - use smaller values when width < 430px
   const isSmallScreen = viewportWidth < 430;
   const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
-  const orangeInnerEdgeLength = isSmallScreen ? 35 : ORANGE_INNER_EDGE_LENGTH;
+  const orangeInnerEdgeLength = isSmallScreen ? 39 : ORANGE_INNER_EDGE_LENGTH;
 
   // Handle joining/creating room
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
@@ -203,13 +203,21 @@ function App() {
   // Handle Buzzer Press (Guest)
   const handleBuzzerPress = () => {
     if (isCreator) return; // Host doesn't buzz
-    if (buzzer.active) return; // Already buzzed
+    if (buzzer.active) return; // Local guard if state already active
 
     if (roomId) {
-      update(ref(db, `rooms/${roomId}/buzzer`), {
-        active: true,
-        playerName: playerName,
-        timestamp: Date.now()
+      const buzzerRef = ref(db, `rooms/${roomId}/buzzer`);
+      runTransaction(buzzerRef, (current) => {
+        if (!current || !current.active) {
+          return {
+            active: true,
+            playerName,
+            timestamp: Date.now()
+          };
+        }
+        return current;
+      }, { applyLocally: false }).catch((err: any) => {
+        console.error('Firebase Error (Buzzer Transaction):', err);
       });
     }
   };
