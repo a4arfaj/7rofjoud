@@ -1,13 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import HexGrid from './components/HexGrid';
 import Lobby from './components/Lobby';
 import {
   generateHexGrid,
-  checkWin,
-  isGreenStart,
-  isGreenEnd,
-  isOrangeStart,
-  isOrangeEnd,
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
@@ -33,12 +28,10 @@ function App() {
   const [isCreator, setIsCreator] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [grid, setGrid] = useState<HexCellData[]>(() => generateHexGrid(ARABIC_LETTERS));
-  const [winner, setWinner] = useState<'Orange' | 'Green' | null>(null);
   const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
   
-  const winnerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
 
   // Responsive orange zone parameters - use smaller values when width < 430px
@@ -117,9 +110,6 @@ function App() {
         if (data.grid && Array.isArray(data.grid)) {
           setGrid(data.grid);
         }
-        if (data.winner !== undefined) {
-          setWinner(data.winner);
-        }
         // Sync buzzer state
         if (data.buzzer) {
           setBuzzer(data.buzzer);
@@ -153,10 +143,8 @@ function App() {
   const handleCellClick = (id: string) => {
     // Only creator (Host) can modify the grid
     if (!isCreator) return;
-    
-    if (winner) return;
 
-    // Optimistic update - cycle through 4 states: 0 (white) -> 1 (yellow) -> 2 (orange) -> 3 (green) -> 0
+    // Allow free editing - cycle through 4 states: 0 (white) -> 1 (yellow) -> 2 (orange) -> 3 (green) -> 0
     const newGrid = grid.map(cell => {
       if (cell.id === id) {
         return { ...cell, state: (cell.state + 1) % 4 as 0 | 1 | 2 | 3 };
@@ -164,27 +152,20 @@ function App() {
       return cell;
     });
 
-    // Check win conditions locally first
-    // Orange is now state 2, Green is state 3
-    const orangeWin = checkWin(newGrid, 2, isOrangeStart, isOrangeEnd);
-    const greenWin = checkWin(newGrid, 3, isGreenStart, isGreenEnd);
-    
-    let newWinner: 'Orange' | 'Green' | null = null;
-    if (orangeWin) newWinner = 'Orange';
-    else if (greenWin) newWinner = 'Green';
-
+    // Update grid freely without win blocking
     // If in a room, push update to Firebase
     if (roomId) {
       update(ref(db, `rooms/${roomId}`), {
-        grid: newGrid,
-        winner: newWinner
+        grid: newGrid
       })
       .catch((err: any) => {
         console.error("Firebase Error (Update):", err);
         // Still update local state even if Firebase fails
         setGrid(newGrid);
-        if (newWinner) setWinner(newWinner);
       });
+    } else {
+      // Local play fallback
+      setGrid(newGrid);
     }
   };
 
@@ -215,30 +196,7 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    if (!winner) return;
-    if (winnerTimeout.current) {
-      clearTimeout(winnerTimeout.current);
-    }
-    
-    winnerTimeout.current = setTimeout(() => {
-      if (roomId && isCreator) {
-         // Creator resets the DB state
-         update(ref(db, `rooms/${roomId}`), { winner: null });
-      } else if (!roomId) {
-        setWinner(null);
-      }
-      winnerTimeout.current = null;
-    }, 1600);
-  }, [winner, roomId, isCreator]);
-
-  useEffect(() => {
-    return () => {
-      if (winnerTimeout.current) {
-        clearTimeout(winnerTimeout.current);
-      }
-    };
-  }, []);
+  // Win detection disabled - free editing enabled
 
   // Track viewport width for responsive design
   useEffect(() => {
