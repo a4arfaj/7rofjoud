@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import HexGrid from './components/HexGrid';
 import Lobby from './components/Lobby';
 import {
@@ -35,11 +35,65 @@ function App() {
   const [hostName, setHostName] = useState<string | null>(null);
   
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
 
   // Responsive orange zone parameters - use smaller values when width < 430px
   const isSmallScreen = viewportWidth < 430;
   const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
   const orangeInnerEdgeLength = isSmallScreen ? 39 : ORANGE_INNER_EDGE_LENGTH;
+
+  // Sound functions using Web Audio API
+  const playBuzzSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800; // Buzzer frequency
+      oscillator.type = 'square';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.error('Error playing buzz sound:', error);
+    }
+  };
+
+  const playWinSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Play a sequence of notes for win sound
+      const notes = [523.25, 659.25, 783.99]; // C, E, G (C major chord)
+      const noteDuration = 0.15;
+      
+      notes.forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sine';
+        
+        const startTime = audioContext.currentTime + (index * noteDuration);
+        gainNode.gain.setValueAtTime(0.3, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + noteDuration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + noteDuration);
+      });
+    } catch (error) {
+      console.error('Error playing win sound:', error);
+    }
+  };
 
   // Handle joining/creating room
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
@@ -135,7 +189,23 @@ function App() {
         }
         // Sync buzzer state
         if (data.buzzer) {
-          setBuzzer(data.buzzer);
+          const newBuzzer = data.buzzer;
+          const prevBuzzer = prevBuzzerRef.current;
+          
+          // Detect when buzzer becomes active
+          if (newBuzzer.active && !prevBuzzer.active) {
+            // Buzzer just became active - play win sound for the winner
+            if (newBuzzer.playerName === playerName) {
+              // This player won - play win sound
+              playWinSound();
+            } else {
+              // Someone else won - play buzz sound
+              playBuzzSound();
+            }
+          }
+          
+          prevBuzzerRef.current = newBuzzer;
+          setBuzzer(newBuzzer);
         }
         // Sync players list
         if (data.players) {
@@ -204,6 +274,9 @@ function App() {
   const handleBuzzerPress = () => {
     if (isCreator) return; // Host doesn't buzz
     if (buzzer.active) return; // Local guard if state already active
+
+    // Play buzz sound when button is pressed
+    playBuzzSound();
 
     if (roomId) {
       const buzzerRef = ref(db, `rooms/${roomId}/buzzer`);
