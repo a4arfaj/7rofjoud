@@ -236,6 +236,16 @@ function App() {
 
   const boardGlow: CSSProperties = {}; // No shadows
 
+  // Convert numbers to Arabic numerals (Eastern Arabic numerals)
+  const toArabicNumerals = (num: string | null): string => {
+    if (!num) return '';
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.split('').map(char => {
+      const digit = parseInt(char);
+      return isNaN(digit) ? char : arabicNumerals[digit];
+    }).join('');
+  };
+
   // Helper to generate deterministic positions for floating names
   const getFloatingStyle = (name: string, zone: 'green-top' | 'green-bottom' | 'orange-left' | 'orange-right') => {
     // Simple deterministic "random" based on name
@@ -315,10 +325,10 @@ function App() {
 
         {/* Right: Room Info */}
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800">
-            غرفة: {roomId}
+          <div className="bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800">
+            غرفة: {toArabicNumerals(roomId)}
           </div>
-          <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800 text-sm">
+          <div className="bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-gray-800 text-sm">
             {isCreator ? 'المضيف (أنت)' : `اللاعب: ${playerName}`}
           </div>
         </div>
