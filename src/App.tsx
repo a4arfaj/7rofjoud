@@ -8,7 +8,7 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update, get } from 'firebase/database';
+import { ref, set, onValue, update, get, onDisconnect } from 'firebase/database';
 
 // Add buzzer interface
 interface BuzzerState {
@@ -110,10 +110,19 @@ function App() {
 
   // Sync with Firebase when in a room
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !playerName) return;
 
     console.log("Setting up Firebase sync for room:", roomId);
     const roomRef = ref(db, `rooms/${roomId}`);
+    const playerRef = ref(db, `rooms/${roomId}/players/${playerName}`);
+    
+    // Set up onDisconnect to remove player when they leave
+    const disconnectRef = onDisconnect(playerRef);
+    disconnectRef.remove().then(() => {
+      console.log("onDisconnect handler set up for player:", playerName);
+    }).catch((err: any) => {
+      console.error("Failed to set up onDisconnect:", err);
+    });
     
     const unsubscribe = onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
@@ -150,8 +159,12 @@ function App() {
     return () => {
       console.log("Cleaning up Firebase listener");
       unsubscribe();
+      // Cancel onDisconnect when component unmounts
+      disconnectRef.cancel().catch((err: any) => {
+        console.error("Failed to cancel onDisconnect:", err);
+      });
     };
-  }, [roomId]);
+  }, [roomId, playerName]);
 
   const handleCellClick = (id: string) => {
     // Only creator (Host) can modify the grid
