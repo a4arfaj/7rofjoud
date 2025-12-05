@@ -1,24 +1,50 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
+import { getDatabase, Database } from "firebase/database";
 
-// Firebase configuration
-// See FIREBASE_EXPLANATION.md for detailed setup instructions
+// ============================================
+// 🔥 FIREBASE CONFIGURATION - إعداد Firebase
+// ============================================
+// To get your Firebase config values:
+// للحصول على قيم إعداد Firebase:
+//
+// 1. Go to: https://console.firebase.google.com/
+//    اذهب إلى: https://console.firebase.google.com/
+//
+// 2. Create/Select project → Enable "Realtime Database"
+//    أنشئ/اختر مشروع → فعّل "Realtime Database"
+//
+// 3. Project Settings ⚙️ → Your apps → Add web app → Copy config
+//    إعدادات المشروع ⚙️ → تطبيقاتك → أضف تطبيق ويب → انسخ الإعدادات
+//
+// 4. Paste your values below ↓
+//    الصق قيمك أدناه ↓
+// ============================================
+
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123"
+  apiKey: "AIzaSyDNdrGIPOVWwjGY_AntRjzfdatAUz6xR3c",
+  authDomain: "rofjoud.firebaseapp.com",
+  databaseURL: "https://rofjoud-default-rtdb.firebaseio.com", // ⚠️ Get this from Realtime Database settings
+  projectId: "rofjoud",
+  storageBucket: "rofjoud.firebasestorage.app",
+  messagingSenderId: "162791939054",
+  appId: "1:162791939054:web:c0d80ff779638401d7ccff"
 };
 
-// Check if Firebase is configured
-if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-  console.error("⚠️ Firebase is NOT configured!");
-  console.error("📖 See FIREBASE_EXPLANATION.md for step-by-step instructions");
-}
+// Firebase configuration check removed - Firebase is configured and working!
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
+let app;
+let db: Database;
+
+try {
+  app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+  console.log("✅ Firebase initialized successfully");
+  console.log("✅ Database URL:", firebaseConfig.databaseURL);
+  console.log("✅ Multiplayer is ready!");
+} catch (error) {
+  console.error("❌ Firebase initialization failed:", error);
+  throw error;
+}
+
+export { db };

@@ -38,15 +38,23 @@ function App() {
     if (creator) {
       // Creator generates grid and pushes to Firebase
       const newGrid = generateHexGrid(ARABIC_LETTERS);
+      console.log("Creating room:", id, "with grid:", newGrid.length, "cells");
       setGrid(newGrid); // Set local state immediately
+      
       set(ref(db, `rooms/${id}`), {
         grid: newGrid,
         winner: null,
         createdAt: Date.now(),
         creatorName: name
-      }).catch(err => {
+      })
+      .then(() => {
+        console.log("Room created successfully in Firebase:", id);
+      })
+      .catch((err: any) => {
         console.error("Firebase Error (Create):", err);
-        alert("فشل في إنشاء الغرفة. تأكد من إعداد Firebase.");
+        console.error("Error code:", err.code);
+        console.error("Error message:", err.message);
+        alert("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
       });
     }
   };
@@ -55,22 +63,35 @@ function App() {
   useEffect(() => {
     if (!roomId) return;
 
+    console.log("Setting up Firebase sync for room:", roomId);
     const roomRef = ref(db, `rooms/${roomId}`);
+    
     const unsubscribe = onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
+      console.log("Firebase data received:", data);
+      
       if (data) {
-        if (data.grid) {
+        if (data.grid && Array.isArray(data.grid)) {
+          console.log("Updating grid from Firebase, cells:", data.grid.length);
           setGrid(data.grid);
-          // Log for debugging
-          console.log("Synced grid from Firebase");
         }
-        if (data.winner !== undefined) setWinner(data.winner);
+        if (data.winner !== undefined) {
+          setWinner(data.winner);
+        }
+      } else {
+        console.warn("No data in Firebase for room:", roomId);
       }
-    }, (error) => {
+    }, (error: any) => {
       console.error("Firebase sync error:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      alert("خطأ في الاتصال بـ Firebase. تأكد من قاعدة البيانات والقواعد.");
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log("Cleaning up Firebase listener");
+      unsubscribe();
+    };
   }, [roomId]);
 
   const handleCellClick = (id: string) => {
@@ -94,12 +115,25 @@ function App() {
 
     // If in a room, push update to Firebase
     if (roomId) {
+      console.log("Updating Firebase with new grid for room:", roomId);
       update(ref(db, `rooms/${roomId}`), {
         grid: newGrid,
         winner: newWinner
-      }).catch(err => {
+      })
+      .then(() => {
+        console.log("Successfully updated Firebase");
+        // Update local state optimistically
+        setGrid(newGrid);
+        if (newWinner) setWinner(newWinner);
+      })
+      .catch((err: any) => {
         console.error("Firebase Error (Update):", err);
-        // If update fails, revert local state? Or just alert?
+        console.error("Error code:", err.code);
+        console.error("Error message:", err.message);
+        // Still update local state even if Firebase fails
+        setGrid(newGrid);
+        if (newWinner) setWinner(newWinner);
+        alert("فشل في تحديث Firebase. تحقق من الاتصال.");
       });
     } else {
       // Local play if somehow no roomId (fallback)
