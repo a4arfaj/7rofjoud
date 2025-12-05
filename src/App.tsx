@@ -663,7 +663,6 @@ function App() {
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
             />
-            <div className="absolute inset-0 z-20 cursor-default" />
           </div>
         </div>
       </div>
