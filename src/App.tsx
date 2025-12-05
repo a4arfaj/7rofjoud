@@ -341,10 +341,10 @@ function App() {
       {!isCreator ? (
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
            {/* Top Frame: Game Board & Zones */}
-           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden border-l-4 border-r-4 border-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3),_-4px_0_20px_rgba(0,0,0,0.3)]">
+           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
               {/* Game container that scales uniformly - scaled down slightly for guest view */}
               <div 
-                className="relative"
+                className="relative border-l-4 border-r-4 border-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3),_-4px_0_20px_rgba(0,0,0,0.3)]"
                 style={{
                   width: 'min(90vw, 60vh)', // Reduced height constraint for guests
                   height: 'min(90vw, 60vh)',
@@ -363,16 +363,19 @@ function App() {
                   {/* The base background here was #3fa653 (green). If we change it to purple, the gaps will be purple. */}
                   <div className="absolute inset-0 bg-[#5e35b1]" />
                   
-                  {/* Green zones at top and bottom - angled/diagonal */}
+                  {/* Green zones at top and bottom - full width rectangles */}
                   <div
-                    className="absolute inset-0"
+                    className="absolute"
                     style={{
-                      backgroundColor: '#3fa653',
-                      clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: `${GREEN_ZONE_DISTANCE}%`,
+                      backgroundColor: '#3fa653'
                     }}
                   />
                   {/* Floating Names in Green Zone (Top) */}
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+                  <div className="absolute overflow-hidden pointer-events-none z-30" style={{ left: 0, right: 0, top: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
                      {players.filter(p => p.team === 'green' && p.name !== hostName)
                      .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                        <div 
@@ -386,14 +389,17 @@ function App() {
                   </div>
 
                   <div
-                    className="absolute inset-0"
+                    className="absolute"
                     style={{
-                      backgroundColor: '#3fa653',
-                      clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: `${GREEN_ZONE_DISTANCE}%`,
+                      backgroundColor: '#3fa653'
                     }}
                   />
                    {/* Floating Names in Green Zone (Bottom) */}
-                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+                   <div className="absolute overflow-hidden pointer-events-none z-30" style={{ left: 0, right: 0, bottom: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
                      {players.filter(p => p.team === 'green' && p.name !== hostName)
                      .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                        <div 
@@ -537,16 +543,19 @@ function App() {
             {/* Base green background */}
             <div className="absolute inset-0 bg-[#3fa653]" />
             
-            {/* Green zones at top and bottom - angled/diagonal */}
+            {/* Green zones at top and bottom - full width rectangles */}
             <div
-              className="absolute inset-0"
+              className="absolute"
               style={{
-                backgroundColor: '#3fa653',
-                clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
+                left: 0,
+                right: 0,
+                top: 0,
+                height: `${GREEN_ZONE_DISTANCE}%`,
+                backgroundColor: '#3fa653'
               }}
             />
             {/* Floating Names in Green Zone (Top) */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+            <div className="absolute overflow-hidden pointer-events-none" style={{ left: 0, right: 0, top: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
@@ -560,14 +569,17 @@ function App() {
             </div>
 
             <div
-              className="absolute inset-0"
+              className="absolute"
               style={{
-                backgroundColor: '#3fa653',
-                clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: `${GREEN_ZONE_DISTANCE}%`,
+                backgroundColor: '#3fa653'
               }}
             />
              {/* Floating Names in Green Zone (Bottom) */}
-             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+             <div className="absolute overflow-hidden pointer-events-none" style={{ left: 0, right: 0, bottom: 0, height: `${GREEN_ZONE_DISTANCE}%` }}>
                {players.filter(p => p.team === 'green' && p.name !== hostName)
                .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
