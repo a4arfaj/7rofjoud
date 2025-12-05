@@ -32,6 +32,7 @@ function App() {
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
   const [roomError, setRoomError] = useState<string>('');
+  const [hostName, setHostName] = useState<string | null>(null);
   
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
 
@@ -147,6 +148,10 @@ function App() {
             ) as Player[];
           }
           setPlayers(playerList);
+        }
+        // Sync creatorName to identify host
+        if (data.creatorName) {
+            setHostName(data.creatorName);
         }
       } else {
         console.warn("No data in Firebase for room:", roomId);
@@ -331,33 +336,185 @@ function App() {
         </div>
       </div>
 
-      {/* Guest Buzzer UI (Bottom Center) */}
-      {!isCreator && (
-        <div className="absolute bottom-8 left-0 right-0 z-50 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto">
-            <button
-              onClick={handleBuzzerPress}
-              disabled={buzzer.active}
-              className={`
-                w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
-                ${buzzer.active 
-                  ? (buzzer.playerName === playerName 
-                      ? 'bg-green-500 border-green-300 scale-110' // You won
-                      : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
-                  : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
-                }
-              `}
-            >
-              <span className="text-white font-black text-2xl drop-shadow-md">
-                {buzzer.active 
-                  ? (buzzer.playerName === playerName ? 'أنت!' : buzzer.playerName)
-                  : 'اضغط!'}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
 
+      {/* Guest Layout: Honeycomb/Zones in Top Frame, Buzzer in Bottom Frame with Padding */}
+      {!isCreator ? (
+        <div className="flex flex-col h-screen w-full overflow-hidden">
+           {/* Top Frame: Game Board & Zones */}
+           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden bg-[#3fa653]">
+              {/* Game container that scales uniformly - scaled down slightly for guest view */}
+              <div 
+                className="relative"
+                style={{
+                  width: 'min(90vw, 60vh)', // Reduced height constraint for guests
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
+                  aspectRatio: '1 / 1',
+                  overflow: 'visible'
+                }}
+              >
+                {/* Background zones inside the container - green (z-index 1) */}
+                <div className="absolute inset-0 z-[1]">
+                  {/* Base green background */}
+                  <div className="absolute inset-0 bg-[#3fa653]" />
+                  
+                  {/* Green zones at top and bottom - angled/diagonal */}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundColor: '#3fa653',
+                      clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
+                    }}
+                  />
+                  {/* Floating Names in Green Zone (Top) */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+                     {players.filter(p => p.team === 'green' && p.name !== hostName)
+                     .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                       <div 
+                         key={`green-top-${i}`} 
+                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                         style={getFloatingStyle(i, arr.length, 'green-top')}
+                       >
+                         {p.name}
+                       </div>
+                     ))}
+                  </div>
+
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundColor: '#3fa653',
+                      clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
+                    }}
+                  />
+                   {/* Floating Names in Green Zone (Bottom) */}
+                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+                     {players.filter(p => p.team === 'green' && p.name !== hostName)
+                     .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                       <div 
+                         key={`green-bottom-${i}`} 
+                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                         style={getFloatingStyle(i, arr.length, 'green-bottom')}
+                       >
+                         {p.name}
+                       </div>
+                     ))}
+                  </div>
+                </div>
+                
+                {/* Orange zones wrapper - extends to viewport edges, ON TOP of green (z-index 5) */}
+                <div className="absolute z-[5]" style={{ 
+                  left: 'calc(-50vw + 50%)', 
+                  top: 'calc(-50vh + 50%)',
+                  width: '100vw',
+                  height: '100vh',
+                  pointerEvents: 'none'
+                }}>
+                  {/* Calculate inner edge positions based on responsive length parameter */}
+                  {(() => {
+                    // Inner edge spans orangeInnerEdgeLength% of height, centered
+                    const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
+                    const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
+                    return (
+                      <>
+                        {/* Left orange zone */}
+                        <div
+                          className="absolute"
+                          style={{
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: `calc(2.5vw + ${orangeZoneDistance}%)`,
+                            backgroundColor: '#f4841f',
+                            clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
+                          }}
+                        >
+                          {/* Floating Names in Orange Zone (Left) */}
+                          <div className="relative w-full h-full overflow-hidden z-30">
+                            {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                            .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                              <div 
+                                key={`orange-left-${i}`} 
+                                className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                                style={getFloatingStyle(i, arr.length, 'orange-left')}
+                              >
+                                {p.name}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Right orange zone */}
+                        <div
+                          className="absolute"
+                          style={{
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: `calc(2.5vw + ${orangeZoneDistance}%)`,
+                            backgroundColor: '#f4841f',
+                            clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
+                            transform: 'scaleX(-1)'
+                          }}
+                        >
+                          {/* Floating Names in Orange Zone (Right) */}
+                          {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
+                          <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
+                             {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                             .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                              <div 
+                                key={`orange-right-${i}`} 
+                                className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                                style={getFloatingStyle(i, arr.length, 'orange-right')}
+                              >
+                                {p.name}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+                
+                {/* Hex grid on top */}
+                <div className="absolute inset-0 flex items-center justify-center z-10" style={boardGlow}>
+                  <HexGrid 
+                    grid={grid} 
+                    size={HEX_SIZE} 
+                    onCellClick={handleCellClick}
+                  />
+                  <div className="absolute inset-0 z-20 cursor-default" />
+                </div>
+              </div>
+           </div>
+
+           {/* Bottom Frame: Buzzer */}
+           <div className="flex-shrink-0 w-full bg-[#3fa653] pb-8 pt-4 flex justify-center items-center z-50">
+              <button
+                onClick={handleBuzzerPress}
+                disabled={buzzer.active}
+                className={`
+                  w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
+                  ${buzzer.active 
+                    ? (buzzer.playerName === playerName 
+                        ? 'bg-green-500 border-green-300 scale-110' // You won
+                        : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
+                    : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
+                  }
+                `}
+              >
+                <span className="text-white font-black text-2xl drop-shadow-md">
+                  {buzzer.active 
+                    ? (buzzer.playerName === playerName ? 'أنت!' : buzzer.playerName)
+                    : '!اضغط'}
+                </span>
+              </button>
+           </div>
+        </div>
+      ) : (
+      /* Host UI: Full Screen Game Board */
       <div className="relative w-full h-screen flex items-center justify-center">
         {/* Game container that scales uniformly */}
         <div 
@@ -385,8 +542,9 @@ function App() {
               }}
             />
             {/* Floating Names in Green Zone (Top) */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
-               {players.filter(p => p.team === 'green').slice(0, Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i, arr) => (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+               {players.filter(p => p.team === 'green' && p.name !== hostName)
+               .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
                    key={`green-top-${i}`} 
                    className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
@@ -405,8 +563,9 @@ function App() {
               }}
             />
              {/* Floating Names in Green Zone (Bottom) */}
-             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
-               {players.filter(p => p.team === 'green').slice(Math.ceil(players.filter(p => p.team === 'green').length / 2)).map((p, i, arr) => (
+             <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
+               {players.filter(p => p.team === 'green' && p.name !== hostName)
+               .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                  <div 
                    key={`green-bottom-${i}`} 
                    className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
@@ -446,8 +605,9 @@ function App() {
                     }}
                   >
                     {/* Floating Names in Orange Zone (Left) */}
-                    <div className="relative w-full h-full overflow-hidden">
-                      {players.filter(p => p.team === 'orange').slice(0, Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i, arr) => (
+                    <div className="relative w-full h-full overflow-hidden z-30">
+                      {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                      .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                         <div 
                           key={`orange-left-${i}`} 
                           className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
@@ -474,8 +634,9 @@ function App() {
                   >
                     {/* Floating Names in Orange Zone (Right) */}
                     {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
-                    <div className="relative w-full h-full overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
-                       {players.filter(p => p.team === 'orange').slice(Math.ceil(players.filter(p => p.team === 'orange').length / 2)).map((p, i, arr) => (
+                    <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
+                       {players.filter(p => p.team === 'orange' && p.name !== hostName)
+                       .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                         <div 
                           key={`orange-right-${i}`} 
                           className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
@@ -498,12 +659,11 @@ function App() {
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
             />
-            {!isCreator && (
-              <div className="absolute inset-0 z-20 cursor-default" />
-            )}
+            <div className="absolute inset-0 z-20 cursor-default" />
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
