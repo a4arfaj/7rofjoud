@@ -38,16 +38,16 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#3fa653] font-['Cairo'] text-white p-4" dir="rtl">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#3fa653] font-['Cairo'] text-white p-2" dir="rtl">
       {/* Logo */}
       <img 
         src={logoImage} 
         alt="حروف مع جود" 
-        className="mb-12 max-w-[600px] w-full h-auto drop-shadow-2xl"
+        className="mb-4 max-w-[600px] w-full h-auto drop-shadow-2xl"
         style={{ maxHeight: '250px', objectFit: 'contain' }}
       />
       
-      <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
+      <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
         <div className="space-y-6">
           {/* Name Input */}
           <div>
