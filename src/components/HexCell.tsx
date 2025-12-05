@@ -15,17 +15,34 @@ function HexCell({ cell, size, layoutSize, onClick }: HexCellProps) {
   const points = corners.map((p) => `${p.x},${p.y}`).join(' ');
 
   let fillColor = '#ffffff';
-  if (cell.state === 1) fillColor = '#f9a826';
-  else if (cell.state === 2) fillColor = '#3ecf5e';
+  if (cell.state === 1) {
+    fillColor = '#ffd700'; // Yellow
+  } else if (cell.state === 2) {
+    fillColor = '#f9a826'; // Orange
+  } else if (cell.state === 3) {
+    fillColor = '#3ecf5e'; // Green
+  }
 
   return (
     <g onClick={() => onClick(cell.id)} className="cursor-pointer">
+      {cell.state === 1 && (
+        <>
+          {/* Glow effect layer */}
+          <polygon
+            points={points}
+            fill="#ffd700"
+            stroke="none"
+            className="glowing-yellow-glow"
+            opacity="0.6"
+          />
+        </>
+      )}
       <polygon
         points={points}
         fill={fillColor}
         stroke="#000000"
         strokeWidth={5}
-        className="transition-[fill] duration-200"
+        className={`transition-[fill] duration-200 ${cell.state === 1 ? 'glowing-yellow' : ''}`}
       />
       <text
         x={x}

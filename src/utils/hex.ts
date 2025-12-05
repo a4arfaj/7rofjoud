@@ -8,7 +8,7 @@ export interface HexCoord {
 export interface HexCellData extends HexCoord {
   letter: string;
   id: string;
-  state: 0 | 1 | 2; // 0: Original, 1: Orange, 2: Green
+  state: 0 | 1 | 2 | 3; // 0: Original, 1: Glowing Yellow (selection), 2: Orange, 3: Green
 }
 
 export function generateHexGrid(letters: string[]): HexCellData[] {
@@ -99,7 +99,7 @@ export function getNeighbors(hex: HexCoord): HexCoord[] {
 
 export function checkWin(
   grid: HexCellData[], 
-  playerState: 1 | 2, // 1: Orange, 2: Green
+  playerState: 2 | 3, // 2: Orange, 3: Green
   startCondition: (h: HexCoord) => boolean,
   endCondition: (h: HexCoord) => boolean
 ): boolean {

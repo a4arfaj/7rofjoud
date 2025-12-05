@@ -12,3 +12,32 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
 }
+
+/* Glowing yellow pulsing animation for selected cells */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    filter: brightness(1.2);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes glow-pulse-background {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.glowing-yellow {
+  animation: glow-pulse 1.5s ease-in-out infinite;
+}
+
+.glowing-yellow-glow {
+  animation: glow-pulse-background 1.5s ease-in-out infinite;
+}

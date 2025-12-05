@@ -140,17 +140,18 @@ function App() {
     
     if (winner) return;
 
-    // Optimistic update
+    // Optimistic update - cycle through 4 states: 0 (white) -> 1 (yellow) -> 2 (orange) -> 3 (green) -> 0
     const newGrid = grid.map(cell => {
       if (cell.id === id) {
-        return { ...cell, state: (cell.state + 1) % 3 as 0 | 1 | 2 };
+        return { ...cell, state: (cell.state + 1) % 4 as 0 | 1 | 2 | 3 };
       }
       return cell;
     });
 
     // Check win conditions locally first
-    const orangeWin = checkWin(newGrid, 1, isOrangeStart, isOrangeEnd);
-    const greenWin = checkWin(newGrid, 2, isGreenStart, isGreenEnd);
+    // Orange is now state 2, Green is state 3
+    const orangeWin = checkWin(newGrid, 2, isOrangeStart, isOrangeEnd);
+    const greenWin = checkWin(newGrid, 3, isGreenStart, isGreenEnd);
     
     let newWinner: 'Orange' | 'Green' | null = null;
     if (orangeWin) newWinner = 'Orange';
@@ -294,8 +295,8 @@ function App() {
           {isCreator && (
             <div className="flex flex-col gap-2">
               {/* Buzzer Status for Host */}
-              <div className={`px-6 py-4 rounded-xl shadow-lg transition-all transform ${buzzer.active ? 'bg-green-500 text-white scale-110' : 'bg-white/80 text-gray-500'}`}>
-                {buzzer.active ? (
+              {buzzer.active && (
+                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110">
                   <div className="text-center">
                     <div className="text-2xl font-bold animate-pulse">{buzzer.playerName}</div>
                     <div className="text-sm">ضغط الزر!</div>
@@ -306,10 +307,8 @@ function App() {
                       إعادة تعيين الزر
                     </button>
                   </div>
-                ) : (
-                  <div className="text-center font-bold">بانتظار المتسابقين...</div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
