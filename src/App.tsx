@@ -965,21 +965,29 @@ function App() {
                 </div>
               )}
 
-      {/* Small Tab - Shows when red phase is not running */}
+      {/* Card - Shows when red phase is not running, positioned below honeycomb */}
       {isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown') && (
-                <div className="absolute px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110" dir="rtl" style={{ top: '80px', right: '20px', zIndex: 60 }}>
-                  <div className="text-center">
+        <div 
+          className="fixed left-1/2 -translate-x-1/2 px-6 py-4 rounded-xl shadow-lg transition-all bg-green-500 text-white z-50" 
+          dir="rtl" 
+          style={{ 
+            top: 'calc(50vh + min(47.5vh, 450px) + 30px)',
+            maxWidth: '90vw',
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="text-center">
             <div className="text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName || '---'}</div>
-                    <div className="text-sm mb-2">ضغط الزر!</div>
+            <div className="text-sm mb-2">ضغط الزر!</div>
             <button 
               onClick={handleStartRedPhase}
               className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
             >
               استأنف جولة
             </button>
-                  </div>
-                </div>
-              )}
+          </div>
+        </div>
+      )}
             </>
           )}
         </div>
@@ -1195,11 +1203,11 @@ function App() {
         </div>
       ) : (
       /* Host UI: Full Screen Game Board */
-      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]">
+      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]" style={{ paddingBottom: showCard ? '120px' : '0' }}>
         {/* Bubbles Overlay */}
         <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
         
-        {/* Game container that scales uniformly - with margin to avoid card overlap */}
+        {/* Game container that scales uniformly */}
         <div 
           className="relative z-10"
           style={{
@@ -1208,9 +1216,7 @@ function App() {
             maxWidth: '900px',
             maxHeight: '900px',
             aspectRatio: '1 / 1',
-            overflow: 'visible',
-            marginTop: '140px', // Add top margin to avoid card overlap (card is at top: 80px + card height)
-            marginRight: '200px' // Add right margin to avoid card overlap (card is at right: 20px + card width)
+            overflow: 'visible'
           }}
         >
           {/* Real frame around zones - extends to cover outer edges */}
