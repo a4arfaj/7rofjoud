@@ -80,8 +80,8 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         rotationRef.current = angle * (180 / Math.PI) + 90;
       }
     } else if (state === 'hovering') {
-      // Call onReachTarget when entering hover state (color disappears while hovering)
-      if (!hasCalledReachTarget.current) {
+      // Wait 1 second after landing before removing color
+      if (elapsed >= 1000 && !hasCalledReachTarget.current) {
         hasCalledReachTarget.current = true;
         onReachTarget();
       }
@@ -90,7 +90,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         stateRef.current = 'leaving';
         startTimeRef.current = now;
       } else {
-        // Bobbing motion
+        // Bobbing motion (wings stopped - no movement)
         posRef.current = {
           x: targetX + Math.sin(elapsed * 0.005) * 8,
           y: targetY + Math.cos(elapsed * 0.005) * 8
@@ -137,6 +137,11 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   // Convert SVG coordinates to percentage
   const percentX = ((posRef.current.x - viewBoxMinX) / viewBoxWidth) * 100;
   const percentY = ((posRef.current.y - viewBoxMinY) / viewBoxHeight) * 100;
+  
+  // Wings only animate when flying (not when hovering)
+  const isHovering = stateRef.current === 'hovering';
+  const wingLeftClass = isHovering ? '' : 'wing-left';
+  const wingRightClass = isHovering ? '' : 'wing-right';
 
   return (
     <div
@@ -166,9 +171,9 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
           `}
         </style>
         <g>
-          {/* Wings */}
-          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-left" />
-          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-right" />
+          {/* Wings - only animate when not hovering */}
+          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={wingLeftClass} style={isHovering ? { transform: 'rotate(-20deg)', transformOrigin: '30px 40px' } : undefined} />
+          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={wingRightClass} style={isHovering ? { transform: 'rotate(20deg)', transformOrigin: '70px 40px' } : undefined} />
           
           {/* Body */}
           <ellipse cx="50" cy="50" rx="22" ry="32" fill="#FFD700" stroke="black" strokeWidth="2" />
