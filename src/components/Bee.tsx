@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { HexCellData, hexToPixel } from '../utils/hex';
+import { hexToPixel } from '../utils/hex';
+import type { HexCellData } from '../utils/hex';
 
 interface BeeProps {
   targetCell: HexCellData | null;

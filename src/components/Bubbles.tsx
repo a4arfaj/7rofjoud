@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BubbleData } from '../types';
+import type { BubbleData } from '../types';
 
 interface BubblesProps {
   bubbles: BubbleData[];
