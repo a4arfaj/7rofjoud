@@ -24,7 +24,6 @@ function App() {
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [selectionMode, setSelectionMode] = useState<'fill' | 'beam'>('fill');
   const [roomError, setRoomError] = useState<string>('');
-  const [hostName, setHostName] = useState<string | null>(null);
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
   const [beeStartTime, setBeeStartTime] = useState<number | null>(null);
   const lastBeeTimestampRef = useRef<number>(0);
@@ -37,6 +36,11 @@ function App() {
     showBee: true,
     showBubbles: true
   });
+  
+  // Reset Timer State
+  const [resetTimer, setResetTimer] = useState<{ active: boolean; phase: 'initial' | 'countdown'; time: number } | null>(null);
+  const resetTimerIntervalRef = useRef<number | null>(null);
+  const lastBuzzerPlayerRef = useRef<string | null>(null);
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -103,6 +107,30 @@ function App() {
       });
     } catch (error) {
       console.error('Error playing win sound:', error);
+    }
+  };
+
+  const playTimesUpSound = async () => {
+    try {
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Lower pitch, descending tone for "times up"
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.5);
+      oscillator.type = 'sawtooth';
+      
+      gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.error('Error playing times up sound:', error);
     }
   };
 
@@ -245,10 +273,6 @@ function App() {
             ) as Player[];
           }
           setPlayers(playerList);
-        }
-        // Sync creatorName to identify host
-        if (data.creatorName) {
-            setHostName(data.creatorName);
         }
         // Sync selection mode
         if (data.selectionMode === 'beam' || data.selectionMode === 'fill') {
@@ -523,6 +547,7 @@ function App() {
   const handleResetBuzzer = () => {
     if (!isCreator) return;
     
+    // Reset buzzer immediately
     if (roomId) {
       update(ref(db, `rooms/${roomId}/buzzer`), {
         active: false,
@@ -530,6 +555,85 @@ function App() {
         timestamp: 0
       });
     }
+    // Clear timer
+    setResetTimer(null);
+    if (resetTimerIntervalRef.current) {
+      window.clearInterval(resetTimerIntervalRef.current);
+      resetTimerIntervalRef.current = null;
+    }
+  };
+
+  // Auto-start timer when buzzer becomes active and track last player
+  useEffect(() => {
+    if (buzzer.active && buzzer.playerName) {
+      // Update last buzzer player
+      lastBuzzerPlayerRef.current = buzzer.playerName;
+      
+      // Start timer immediately when buzzer is pressed (only if not already running)
+      if (!resetTimer) {
+        setResetTimer({ active: true, phase: 'initial', time: 4 });
+      }
+    } else if (!buzzer.active && resetTimer) {
+      // Clear timer if buzzer is reset externally
+      setResetTimer(null);
+      if (resetTimerIntervalRef.current) {
+        window.clearInterval(resetTimerIntervalRef.current);
+        resetTimerIntervalRef.current = null;
+      }
+    }
+  }, [buzzer.active, buzzer.playerName, buzzer.timestamp]);
+
+  // Reset Timer Effect
+  useEffect(() => {
+    if (!resetTimer || !resetTimer.active) {
+      if (resetTimerIntervalRef.current) {
+        window.clearInterval(resetTimerIntervalRef.current);
+        resetTimerIntervalRef.current = null;
+      }
+      return;
+    }
+
+    resetTimerIntervalRef.current = window.setInterval(() => {
+      setResetTimer(current => {
+        if (!current) return null;
+
+        if (current.time <= 1) {
+          // Phase transition or reset
+          if (current.phase === 'initial') {
+            // Play times up sound when 4 seconds finish
+            playTimesUpSound();
+            // Don't automatically move to red phase - just stop the timer
+            // Return null to stop the timer, but keep buzzer active for the small tab
+            return null;
+          } else {
+            // Countdown finished - reset buzzer and close
+            if (roomId) {
+              update(ref(db, `rooms/${roomId}/buzzer`), {
+                active: false,
+                playerName: null,
+                timestamp: 0
+              });
+            }
+            return null;
+          }
+        }
+
+        return { ...current, time: current.time - 1 };
+      });
+    }, 1000);
+
+    return () => {
+      if (resetTimerIntervalRef.current) {
+        window.clearInterval(resetTimerIntervalRef.current);
+        resetTimerIntervalRef.current = null;
+      }
+    };
+  }, [resetTimer, roomId]);
+
+  // Handle Start Red Phase (manually triggered)
+  const handleStartRedPhase = () => {
+    if (!isCreator) return;
+    setResetTimer({ active: true, phase: 'countdown', time: 15 });
   };
 
   // Win detection disabled - free editing enabled
@@ -547,58 +651,16 @@ function App() {
     }).join('');
   };
 
-  // Helper to generate centralized positions for floating names
-  const getFloatingStyle = (index: number, total: number, zone: 'green-top' | 'green-bottom' | 'orange-left' | 'orange-right') => {
-    // Calculate centralized positions - spread evenly around center
-    let offset = 0;
-    if (total > 1) {
-      const spacing = Math.min(30, 80 / total); // Max spacing of 30% per item
-      offset = (index - (total - 1) / 2) * spacing;
-    }
-
-    // Adjust positions based on zone - more centralized, moved further away from grid
-    switch(zone) {
-      case 'green-top':
-        // Top V shape - centered horizontally around 50%, moved further up (35% instead of 40%)
-        return { 
-          top: '35%', 
-          left: `calc(50% + ${offset}%)`,
-          transform: 'translateX(-50%)'
-        };
-      case 'green-bottom':
-        // Bottom V shape - centered horizontally, moved further down (35% instead of 40%)
-        return { 
-          bottom: '35%', 
-          left: `calc(50% + ${offset}%)`,
-          transform: 'translateX(-50%)'
-        };
-      case 'orange-left':
-        // Left side - centered vertically around 50%, moved further left (40% instead of 50%)
-        return { 
-          top: `calc(50% + ${offset}%)`, 
-          left: '40%',
-          transform: 'translate(-50%, -50%)'
-        };
-      case 'orange-right':
-        // Right side - centered vertically, moved further right (40% instead of 50%)
-        return { 
-          top: `calc(50% + ${offset}%)`, 
-          left: '40%',
-          transform: 'translate(-50%, -50%)'
-        };
-    }
-    return {};
-  };
 
   if (!roomId) {
     return <Lobby onJoinRoom={handleJoinRoom} checkRoomExists={checkRoomExists} roomError={roomError} />;
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#3fa653] font-['Cairo']">
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#3fa653] font-['Cairo']" dir="rtl">
       {/* Top UI Layer */}
       <div className="absolute top-0 left-0 right-0 z-50 p-4 flex justify-between items-start pointer-events-none">
-        {/* Left: Host Controls (only visible to Host) */}
+        {/* Right: Host Controls (only visible to Host) */}
         <div className="pointer-events-auto flex flex-col gap-2">
           {isCreator && (
             <>
@@ -623,32 +685,32 @@ function App() {
 
               {/* Settings Menu */}
               {showSettings && (
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50">
-                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2">إعدادات اللعبة</h3>
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50" dir="rtl">
+                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2 text-right">إعدادات اللعبة</h3>
                   
                   <div className="space-y-4">
                     {/* Selection Mode */}
                     <div>
-                      <label className="block text-sm font-bold mb-1">وضع التحديد</label>
-                      <div className="flex bg-gray-200 rounded-lg p-1">
+                      <label className="block text-sm font-bold mb-1 text-right">حال التعليم</label>
+                      <div className="flex bg-gray-200 rounded-lg p-1 flex-row-reverse">
                         <button
                           onClick={() => handleSelectionModeToggle('fill')}
                           className={`flex-1 py-1 rounded-md text-sm font-bold transition-all ${selectionMode === 'fill' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                          تلوين
+                          ومضة
                         </button>
                         <button
                           onClick={() => handleSelectionModeToggle('beam')}
                           className={`flex-1 py-1 rounded-md text-sm font-bold transition-all ${selectionMode === 'beam' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                          شعاع
+                          حلقة
                         </button>
                       </div>
                     </div>
 
                     {/* Zone Colors (Themes) */}
       <div>
-                      <label className="block text-sm font-bold mb-2">سمة الألوان</label>
+                      <label className="block text-sm font-bold mb-2 text-right">سمة الألوان</label>
                       <div className="grid grid-cols-2 gap-2">
                         {COLOR_THEMES.map((theme) => (
                           <button
@@ -677,23 +739,23 @@ function App() {
                     {/* Toggles */}
                     <div className="space-y-3 pt-2 border-t border-gray-200">
                       <div 
-                        className="flex items-center justify-between cursor-pointer group"
+                        className="flex items-center justify-between cursor-pointer group flex-row-reverse"
                         onClick={() => handleSettingChange('showBee', !gameSettings.showBee)}
                       >
-                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors">النحلة</span>
                         <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out ${gameSettings.showBee ? 'bg-green-500' : 'bg-gray-300'}`}>
-                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBee ? 'translate-x-6' : 'translate-x-0'}`} />
+                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBee ? '-translate-x-6' : 'translate-x-0'}`} />
                         </div>
+                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors text-left">النحلة</span>
                       </div>
                       
                       <div 
-                        className="flex items-center justify-between cursor-pointer group"
+                        className="flex items-center justify-between cursor-pointer group flex-row-reverse"
                         onClick={() => handleSettingChange('showBubbles', !gameSettings.showBubbles)}
                       >
-                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors">الفقاعات</span>
                         <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out ${gameSettings.showBubbles ? 'bg-green-500' : 'bg-gray-300'}`}>
-                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBubbles ? 'translate-x-6' : 'translate-x-0'}`} />
+                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBubbles ? '-translate-x-6' : 'translate-x-0'}`} />
                         </div>
+                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors text-left">الفقاعات</span>
                       </div>
                     </div>
                   </div>
@@ -702,14 +764,14 @@ function App() {
 
               {/* Player List Menu */}
               {showPlayerList && (
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50 max-h-[60vh] overflow-y-auto">
-                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2">قائمة اللاعبين</h3>
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50 max-h-[60vh] overflow-y-auto" dir="rtl">
+                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2 text-right">قائمة اللاعبين</h3>
                   {players.length === 0 ? (
                     <p className="text-gray-500 text-center py-2">لا يوجد لاعبين بعد</p>
                   ) : (
                     <ul className="space-y-2">
                       {players.map((p, idx) => (
-                        <li key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded shadow-sm">
+                        <li key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded shadow-sm flex-row-reverse">
                           <span className="font-bold">{p.name}</span>
                           <span className={`text-xs px-2 py-1 rounded-full text-white ${p.team === 'green' ? 'bg-[#3fa653]' : 'bg-[#f4841f]'}`}>
                             {p.team === 'green' ? 'أخضر' : 'برتقالي'}
@@ -721,18 +783,65 @@ function App() {
                 </div>
               )}
 
-              {/* Buzzer Status for Host */}
-              {buzzer.active && (
-                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110 mt-2">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold animate-pulse">{buzzer.playerName}</div>
-                    <div className="text-sm">ضغط الزر!</div>
+              {/* Reset Timer Full Screen Overlay - Shows immediately when buzzer is active and timer is running */}
+              {buzzer.active && buzzer.playerName && resetTimer && resetTimer.active && (
+                <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center" dir="rtl">
+                  <div 
+                    className={`absolute inset-0 transition-colors duration-500 ${
+                      resetTimer.phase === 'initial' ? 'bg-green-500/95' : 'bg-red-500/95'
+                    }`}
+                  />
+                  <div className="relative z-10 text-center text-white">
+                    {/* Player Name */}
+                    <div className="text-4xl md:text-5xl font-black mb-12 animate-pulse">
+                      {buzzer.playerName}
+                    </div>
+                    
+                    {/* Timer */}
+                    <div className="text-8xl md:text-9xl font-black mb-8 animate-pulse">
+                      {toArabicNumerals(resetTimer.time.toString())}
+                    </div>
+                    
+                    {/* Phase Text */}
+                    <div className="text-3xl md:text-4xl font-bold mb-8">
+                      {resetTimer.phase === 'initial' ? 'جاهز...' : 'انتهى الوقت!'}
+                    </div>
+                    
+                    {/* Reset Button - Show in both phases */}
                     <button 
                       onClick={handleResetBuzzer}
-                      className="mt-2 bg-white text-green-600 px-4 py-1 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+                      className={`mt-4 px-8 py-3 rounded-full text-xl font-bold hover:bg-gray-100 active:scale-95 transition-transform shadow-2xl ${
+                        resetTimer.phase === 'initial' 
+                          ? 'bg-white text-green-600' 
+                          : 'bg-white text-red-600'
+                      }`}
                     >
-                      استانف الأزرار
+                      استأنف الأزرار
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Small Tab - Shows when buzzer is active but timer is not running (after 4 seconds or if missed) */}
+              {isCreator && buzzer.active && buzzer.playerName && (!resetTimer || !resetTimer.active) && (
+                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110 mt-2" dir="rtl">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName}</div>
+                    <div className="text-sm mb-2">ضغط الزر!</div>
+                    <div className="flex gap-2 justify-center">
+                      <button 
+                        onClick={handleStartRedPhase}
+                        className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+                      >
+                        استأنف جولة
+                      </button>
+                      <button 
+                        onClick={handleResetBuzzer}
+                        className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+                      >
+                        استأنف الأزرار
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -740,14 +849,16 @@ function App() {
           )}
         </div>
 
-        {/* Right: Room Info with Padding */}
-        <div className="pointer-events-auto flex flex-col items-end gap-2 pl-4">
+        {/* Left: Room Info with Padding */}
+        <div className="pointer-events-auto flex flex-col items-start gap-2 pr-4" dir="rtl">
           <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white">
             غرفة: {toArabicNumerals(roomId)}
           </div>
-          <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white text-sm">
-            {isCreator ? 'المضيف (أنت)' : `اللاعب: ${playerName}`}
-          </div>
+          {!isCreator && (
+            <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white text-sm">
+              اللاعب: {playerName}
+            </div>
+          )}
         </div>
       </div>
 
@@ -793,25 +904,6 @@ function App() {
                           clipPath: `polygon(0 0, 50% 100%, 100% 0)`
                         }}
                       />
-                      {/* Floating Names in Green Zone (Top) */}
-                      <div className="absolute overflow-hidden pointer-events-none z-30" style={{
-                        left: `${outerEdgeLeft}%`,
-                        width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                        top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                        height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                        clipPath: `polygon(0 0, 50% 100%, 100% 0)`
-                      }}>
-                   {players.filter(p => p.team === 'green' && p.name !== hostName)
-                   .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                     <div 
-                       key={`green-top-${i}`} 
-                       className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                       style={getFloatingStyle(i, arr.length, 'green-top')}
-                     >
-                       {p.name}
-                     </div>
-                   ))}
-                      </div>
 
                       <div
                         className="absolute"
@@ -824,25 +916,6 @@ function App() {
                           clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                         }}
                       />
-                       {/* Floating Names in Green Zone (Bottom) */}
-                       <div className="absolute overflow-hidden pointer-events-none z-30" style={{
-                         left: `${outerEdgeLeft}%`,
-                         width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                         bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                         height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                         clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
-                       }}>
-                         {players.filter(p => p.team === 'green' && p.name !== hostName)
-                         .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                           <div 
-                             key={`green-bottom-${i}`} 
-                             className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                             style={getFloatingStyle(i, arr.length, 'green-bottom')}
-                           >
-                             {p.name}
-                           </div>
-                         ))}
-                      </div>
                     </>
                   );
                 })()}
@@ -886,21 +959,7 @@ function App() {
                           backgroundColor: zoneColors.orange,
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                         }}
-                      >
-                        {/* Floating Names in Orange Zone (Left) */}
-                        <div className="relative w-full h-full overflow-hidden z-30">
-                          {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                          .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                            <div 
-                              key={`orange-left-${i}`} 
-                              className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                              style={getFloatingStyle(i, arr.length, 'orange-left')}
-                            >
-                              {p.name}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      />
 
                       {/* Right orange zone */}
                       <div
@@ -914,22 +973,7 @@ function App() {
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                           transform: 'scaleX(-1)'
                         }}
-                      >
-                        {/* Floating Names in Orange Zone (Right) */}
-                        {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
-                        <div className="relative w-full h-full overflow-hidden z-30" style={{ transform: 'scaleX(-1)' }}>
-                           {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                           .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                            <div 
-                              key={`orange-right-${i}`} 
-                              className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                              style={getFloatingStyle(i, arr.length, 'orange-right')}
-                            >
-                              {p.name}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      />
                     </>
                   );
                 })()}
@@ -1013,8 +1057,8 @@ function App() {
               >
                 <span className="text-white font-black text-2xl drop-shadow-md">
                   {buzzer.active 
-                    ? (buzzer.playerName === playerName ? '!أنت' : buzzer.playerName)
-                    : '!اضغط'}
+                    ? (buzzer.playerName === playerName ? 'أنت' : buzzer.playerName)
+                    : 'اضغط'}
                 </span>
         </button>
            </div>
@@ -1093,25 +1137,6 @@ function App() {
                       clipPath: `polygon(0 0, 50% 100%, 100% 0)`
                     }}
                   />
-                  {/* Floating Names in Green Zone (Top) */}
-                  <div className="absolute overflow-hidden pointer-events-none z-30" style={{
-                    left: `${outerEdgeLeft}%`,
-                    width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                    top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                    height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                    clipPath: `polygon(0 0, 50% 100%, 100% 0)`
-                  }}>
-                     {players.filter(p => p.team === 'green' && p.name !== hostName)
-                     .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                       <div 
-                         key={`green-top-${i}`} 
-                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                         style={getFloatingStyle(i, arr.length, 'green-top')}
-                       >
-                         {p.name}
-                       </div>
-                     ))}
-                  </div>
 
                   <div
                     className="absolute"
@@ -1124,25 +1149,6 @@ function App() {
                       clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                     }}
                   />
-                   {/* Floating Names in Green Zone (Bottom) */}
-                   <div className="absolute overflow-hidden pointer-events-none z-30" style={{
-                     left: `${outerEdgeLeft}%`,
-                     width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                     bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                     height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                     clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
-                   }}>
-                     {players.filter(p => p.team === 'green' && p.name !== hostName)
-                     .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                       <div 
-                         key={`green-bottom-${i}`} 
-                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                         style={getFloatingStyle(i, arr.length, 'green-bottom')}
-                       >
-                         {p.name}
-                       </div>
-                     ))}
-                  </div>
                 </>
               );
             })()}
@@ -1183,21 +1189,7 @@ function App() {
                       backgroundColor: zoneColors.orange,
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                     }}
-                  >
-                    {/* Floating Names in Orange Zone (Left) */}
-                    <div className="relative w-full h-full overflow-hidden">
-                      {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                      .slice(0, Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                        <div 
-                          key={`orange-left-${i}`} 
-                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                          style={getFloatingStyle(i, arr.length, 'orange-left')}
-                        >
-                          {p.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  />
 
                   {/* Right orange zone */}
                   <div
@@ -1211,22 +1203,7 @@ function App() {
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                       transform: 'scaleX(-1)'
                     }}
-                  >
-                    {/* Floating Names in Orange Zone (Right) */}
-                    {/* Note: Text will be flipped because of scaleX(-1). We need to unflip it. */}
-                    <div className="relative w-full h-full overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
-                       {players.filter(p => p.team === 'orange' && p.name !== hostName)
-                       .slice(Math.ceil(players.filter(p => p.team === 'orange' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                        <div 
-                          key={`orange-right-${i}`} 
-                          className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                          style={getFloatingStyle(i, arr.length, 'orange-right')}
-                        >
-                          {p.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  />
                 </>
               );
             })()}

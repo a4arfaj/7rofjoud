@@ -70,7 +70,7 @@ export const FRAME_POSITION_OFFSET_X = 0; // Horizontal position adjustment (pos
 export const FRAME_POSITION_OFFSET_Y = 0; // Vertical position adjustment (positive = down, negative = up, as % of container)
 
 export const COLOR_THEMES = [
-  { id: 'classical', name: 'كلاسيكي', orange: '#f4841f', green: '#3fa653' },
+  { id: 'classical', name: 'معهود', orange: '#f4841f', green: '#3fa653' },
   { id: 'royal', name: 'ملكي', orange: '#ffd740', green: '#7c4dff' }, // Gold & Purple
   { id: 'fireice', name: 'نار وثلج', orange: '#ff5252', green: '#448aff' }, // Red & Blue
   { id: 'nature', name: 'طبيعة', orange: '#ffab91', green: '#009688' } // Coral & Teal

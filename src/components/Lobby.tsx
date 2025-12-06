@@ -19,6 +19,16 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
     return str.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
   };
 
+  // Helper to convert numbers to Arabic numerals (Eastern Arabic numerals)
+  const toArabicNumerals = (num: string | null | undefined): string => {
+    if (!num) return '';
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.split('').map(char => {
+      const digit = parseInt(char);
+      return isNaN(digit) ? char : arabicNumerals[digit];
+    }).join('');
+  };
+
   const handleCreateClick = () => {
     setPendingAction({ type: 'create' });
     setShowNameInput(true);
@@ -121,9 +131,9 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
             <div className="animate-fadeIn">
               <div className="text-center mb-6">
                 <h3 className="text-2xl font-bold mb-2">
-                  {pendingAction?.type === 'create' ? 'إعداد الغرفة' : `الانضمام للغرفة ${pendingAction?.roomId}`}
+                  {pendingAction?.type === 'create' ? 'إعداد الغرفة' : `دخول غرفة ${toArabicNumerals(pendingAction?.roomId)}`}
                 </h3>
-                <p className="text-white/80">من فضلك ادخل اسمك للمتابعة</p>
+                <p className="text-white/80">أدخل اسمك</p>
               </div>
 
               <div className="space-y-4">
@@ -134,7 +144,7 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
-                    placeholder="ادخل اسمك"
+                    placeholder="أدخل اسمك"
                     autoFocus
                     className="w-full px-4 py-3 bg-white/90 text-gray-800 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-[#f4841f] text-center placeholder-gray-500"
                   />
@@ -144,7 +154,7 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
                   onClick={handleNameSubmit}
                   className="w-full py-3 bg-[#3ecf5e] hover:bg-[#2ea046] text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg mt-4"
                 >
-                  {pendingAction?.type === 'create' ? 'ابدأ اللعب' : 'انضم للعب'}
+                  {pendingAction?.type === 'create' ? 'ابدأ اللعب' : 'شاركهم اللعب'}
                 </button>
 
                 <button
