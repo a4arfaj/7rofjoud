@@ -800,7 +800,7 @@ function App() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#3fa653] font-['Cairo']" dir="rtl">
       {/* Top UI Layer */}
-      <div className="absolute top-0 left-0 right-0 z-50 p-4 flex justify-between items-start pointer-events-none">
+      <div className="absolute top-0 left-0 right-0 z-50 p-2 sm:p-4 flex justify-between items-start pointer-events-none" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
         {/* Right: Host Controls (only visible to Host) */}
         <div className="pointer-events-auto flex flex-col gap-2">
           {isCreator && (
@@ -968,20 +968,22 @@ function App() {
       {/* Card - Shows when red phase is not running, positioned below honeycomb */}
       {isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown') && (
         <div 
-          className="fixed left-1/2 -translate-x-1/2 px-6 py-4 rounded-xl shadow-lg transition-all bg-green-500 text-white z-50" 
+          className="fixed left-1/2 -translate-x-1/2 px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-lg transition-all bg-green-500 text-white z-50 mx-2" 
           dir="rtl" 
           style={{ 
-            top: 'calc(50vh + min(47.5vh, 450px) + 30px)',
-            maxWidth: '90vw',
-            transform: 'translateX(-50%)'
+            bottom: '20px',
+            maxWidth: 'calc(100vw - 16px)',
+            width: 'auto',
+            transform: 'translateX(-50%)',
+            maxHeight: 'calc(100vh - env(safe-area-inset-bottom) - 40px)'
           }}
         >
           <div className="text-center">
-            <div className="text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName || '---'}</div>
-            <div className="text-sm mb-2">ضغط الزر!</div>
+            <div className="text-xl sm:text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName || '---'}</div>
+            <div className="text-xs sm:text-sm mb-2">ضغط الزر!</div>
             <button 
               onClick={handleStartRedPhase}
-              className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+              className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
             >
               استأنف جولة
             </button>
@@ -1203,7 +1205,12 @@ function App() {
         </div>
       ) : (
       /* Host UI: Full Screen Game Board */
-      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]" style={{ paddingBottom: showCard ? '120px' : '0' }}>
+      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]" style={{ 
+        paddingTop: 'max(80px, env(safe-area-inset-top))',
+        paddingBottom: showCard ? '140px' : '20px',
+        paddingLeft: 'max(env(safe-area-inset-left), 0px)',
+        paddingRight: 'max(env(safe-area-inset-right), 0px)'
+      }}>
         {/* Bubbles Overlay */}
         <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
         
@@ -1211,8 +1218,8 @@ function App() {
         <div 
           className="relative z-10"
           style={{
-            width: 'min(95vw, 95vh)',
-            height: 'min(95vw, 95vh)',
+            width: 'min(90vw, calc(95vh - 100px))',
+            height: 'min(90vw, calc(95vh - 100px))',
             maxWidth: '900px',
             maxHeight: '900px',
             aspectRatio: '1 / 1',
@@ -1250,8 +1257,8 @@ function App() {
               left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
               top: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'min(95vw, 95vh)',
-              height: 'min(95vw, 95vh)',
+              width: 'min(90vw, calc(95vh - 100px))',
+              height: 'min(90vw, calc(95vh - 100px))',
               maxWidth: '900px',
               maxHeight: '900px',
               aspectRatio: '1 / 1'
@@ -1297,8 +1304,8 @@ function App() {
             left: '50%',
             top: '50%',
             transform: 'translate(-50%, -50%)',
-            width: 'min(95vw, 95vh)',
-            height: 'min(95vw, 95vh)',
+            width: 'min(90vw, calc(95vh - 100px))',
+            height: 'min(90vw, calc(95vh - 100px))',
             maxWidth: '900px',
             maxHeight: '900px',
             aspectRatio: '1 / 1',
