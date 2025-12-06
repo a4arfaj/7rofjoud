@@ -9,9 +9,11 @@ type HexCellProps = {
   onClick: (id: string) => void;
   selectionMode?: 'fill' | 'beam';
   renderBeam?: boolean;
+  orangeColor?: string;
+  greenColor?: string;
 };
 
-function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', renderBeam = true }: HexCellProps) {
+function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', renderBeam = true, orangeColor = '#f9a826', greenColor = '#3ecf5e' }: HexCellProps) {
   const effectiveLayoutSize = layoutSize || size;
   const { x, y } = hexToPixel(cell, effectiveLayoutSize);
   const corners = getHexCorners({ x, y }, size);
@@ -23,9 +25,9 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
   if (isSelected && selectionMode === 'fill') {
     fillColor = SELECTION_START_COLOR; // Start color from constants
   } else if (cell.state === 2) {
-    fillColor = '#f9a826'; // Orange
+    fillColor = orangeColor; // Dynamic Orange
   } else if (cell.state === 3) {
-    fillColor = '#3ecf5e'; // Green
+    fillColor = greenColor; // Dynamic Green
   }
 
   return (

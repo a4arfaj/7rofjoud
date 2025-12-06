@@ -8,9 +8,11 @@ type HexGridProps = {
   size: number;
   onCellClick: (id: string) => void;
   selectionMode?: 'fill' | 'beam';
+  orangeColor?: string;
+  greenColor?: string;
 };
 
-function HexGrid({ grid, size, onCellClick, selectionMode = 'fill' }: HexGridProps) {
+function HexGrid({ grid, size, onCellClick, selectionMode = 'fill', orangeColor, greenColor }: HexGridProps) {
   if (grid.length === 0) {
     return null;
   }
@@ -44,6 +46,8 @@ function HexGrid({ grid, size, onCellClick, selectionMode = 'fill' }: HexGridPro
             onClick={onCellClick}
             selectionMode={selectionMode}
             renderBeam={false}
+            orangeColor={orangeColor}
+            greenColor={greenColor}
           />
         ))}
       </g>

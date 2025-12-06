@@ -61,11 +61,18 @@ export const BEAM_ANIMATION_SPEED = 1.2; // Speed of beam mode animation in seco
 // Lower values = faster spin, Higher values = slower spin
 
 // Frame Controls - Edit size and position here
-export const FRAME_BORDER_WIDTH = 8; // Frame border thickness in pixels
-export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Frame border color
-export const FRAME_BORDER_RADIUS = 20; // Frame corner radius in pixels
-export const FRAME_PADDING_HORIZONTAL = 65; // Extra width added to frame (as % of container)
-export const FRAME_PADDING_VERTICAL = 86; // Extra height added to frame (as % of container)
+export const FRAME_BORDER_WIDTH = 10; // Frame border thickness in pixels
+export const FRAME_BORDER_COLOR = 'rgba(75, 51, 206, 0.95)'; // Frame border color
+export const FRAME_BORDER_RADIUS = 10; // Frame corner radius in pixels
+export const FRAME_PADDING_HORIZONTAL = 32; // Extra width added to frame (as % of container)
+export const FRAME_PADDING_VERTICAL = 22; // Extra height added to frame (as % of container)
 export const FRAME_POSITION_OFFSET_X = 0; // Horizontal position adjustment (positive = right, negative = left, as % of container)
 export const FRAME_POSITION_OFFSET_Y = 0; // Vertical position adjustment (positive = down, negative = up, as % of container)
+
+export const COLOR_THEMES = [
+  { id: 'classical', name: 'كلاسيكي', orange: '#f4841f', green: '#3fa653' },
+  { id: 'royal', name: 'ملكي', orange: '#ffd740', green: '#7c4dff' }, // Gold & Purple
+  { id: 'fireice', name: 'نار وثلج', orange: '#ff5252', green: '#448aff' }, // Red & Blue
+  { id: 'nature', name: 'طبيعة', orange: '#ffab91', green: '#009688' } // Coral & Teal
+];
 

@@ -8,7 +8,7 @@ import {
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
-import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET, FRAME_BORDER_WIDTH, FRAME_BORDER_COLOR, FRAME_BORDER_RADIUS, FRAME_PADDING_HORIZONTAL, FRAME_PADDING_VERTICAL, FRAME_POSITION_OFFSET_X, FRAME_POSITION_OFFSET_Y } from './constants';
+import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET, FRAME_BORDER_WIDTH, FRAME_BORDER_COLOR, FRAME_BORDER_RADIUS, FRAME_PADDING_HORIZONTAL, FRAME_PADDING_VERTICAL, FRAME_POSITION_OFFSET_X, FRAME_POSITION_OFFSET_Y, COLOR_THEMES } from './constants';
 import { db } from './firebase';
 import { ref, set, onValue, update, get, onDisconnect, runTransaction, push, remove } from 'firebase/database';
 import type { BubbleData, Player, BuzzerState } from './types';
@@ -28,6 +28,15 @@ function App() {
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
   const [beeStartTime, setBeeStartTime] = useState<number | null>(null);
   const lastBeeTimestampRef = useRef<number>(0);
+  
+  // Settings State
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPlayerList, setShowPlayerList] = useState(false);
+  const [zoneColors, setZoneColors] = useState({ orange: '#f4841f', green: '#3fa653' });
+  const [gameSettings, setGameSettings] = useState({
+    showBee: true,
+    showBubbles: true
+  });
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -135,7 +144,11 @@ function App() {
         creatorName: name,
         buzzer: { active: false, playerName: null, timestamp: 0 },
         selectionMode: 'fill',
-        players: { [name]: initialPlayer } // Store as object key->value
+        players: { [name]: initialPlayer }, // Store as object key->value
+        settings: {
+          zoneColors: { orange: '#f4841f', green: '#3fa653' },
+          gameSettings: { showBee: true, showBubbles: true }
+        }
       })
       .then(() => {
         console.log("Room created successfully in Firebase:", id);
@@ -243,6 +256,13 @@ function App() {
         } else {
           setSelectionMode('fill');
         }
+        
+        // Sync settings
+        if (data.settings) {
+          if (data.settings.zoneColors) setZoneColors(data.settings.zoneColors);
+          if (data.settings.gameSettings) setGameSettings(data.settings.gameSettings);
+        }
+
         // Sync bee target
         if (data.beeTarget && data.beeTarget.timestamp > lastBeeTimestampRef.current) {
           lastBeeTimestampRef.current = data.beeTarget.timestamp;
@@ -361,6 +381,15 @@ function App() {
   useEffect(() => {
     if (!isCreator || !roomId) return;
     
+    // Clear existing target if bee is disabled
+    if (!gameSettings.showBee) {
+      if (activeBeeCell) {
+        update(ref(db, `rooms/${roomId}`), { beeTarget: null });
+        setActiveBeeCell(null);
+      }
+      return;
+    }
+    
     const interval = setInterval(() => {
       setGrid(currentGrid => {
         // Find colored cells
@@ -373,10 +402,10 @@ function App() {
         }
         return currentGrid;
       });
-    }, 10000); // 10 seconds for testing (was 45000 + Math.random() * 30000)
+    }, 10000); // 10 seconds for testing
 
     return () => clearInterval(interval);
-  }, [isCreator, roomId]);
+  }, [isCreator, roomId, gameSettings.showBee]); // Added gameSettings.showBee dependency
 
   const handleBeeReachTarget = () => {
     if (isCreator && activeBeeCell && roomId) {
@@ -404,7 +433,7 @@ function App() {
 
   // Host Bubble Spawn Logic
   useEffect(() => {
-    if (!isCreator || !roomId || players.length === 0) return;
+    if (!isCreator || !roomId || players.length === 0 || !gameSettings.showBubbles) return;
 
     const spawnInterval = setInterval(() => {
       // Read current bubbles from Firebase to check limit
@@ -455,7 +484,7 @@ function App() {
       clearInterval(spawnInterval);
       clearInterval(cleanupInterval);
     };
-  }, [isCreator, roomId, players]);
+  }, [isCreator, roomId, players, gameSettings.showBubbles]); // Added gameSettings.showBubbles dependency
 
   const handleBubblePop = (id: string) => {
     if (!roomId) return;
@@ -465,13 +494,29 @@ function App() {
     });
   };
 
-  const handleSelectionModeToggle = () => {
+  const handleSelectionModeToggle = (mode: 'fill' | 'beam') => {
     if (!isCreator || !roomId) return;
-    const nextMode: 'fill' | 'beam' = selectionMode === 'fill' ? 'beam' : 'fill';
-    setSelectionMode(nextMode);
+    setSelectionMode(mode);
     update(ref(db, `rooms/${roomId}`), {
-      selectionMode: nextMode
+      selectionMode: mode
     });
+  };
+
+  const handleSettingChange = (key: string, value: any) => {
+    if (!isCreator || !roomId) return;
+    
+    if (key === 'theme') {
+      const selectedTheme = COLOR_THEMES.find(t => t.id === value);
+      if (selectedTheme) {
+        const newColors = { orange: selectedTheme.orange, green: selectedTheme.green };
+        setZoneColors(newColors);
+        update(ref(db, `rooms/${roomId}/settings/zoneColors`), newColors);
+      }
+    } else {
+      const newSettings = { ...gameSettings, [key]: value };
+      setGameSettings(newSettings);
+      update(ref(db, `rooms/${roomId}/settings/gameSettings`), newSettings);
+    }
   };
 
   // Handle Reset Buzzer (Host)
@@ -554,12 +599,131 @@ function App() {
       {/* Top UI Layer */}
       <div className="absolute top-0 left-0 right-0 z-50 p-4 flex justify-between items-start pointer-events-none">
         {/* Left: Host Controls (only visible to Host) */}
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex flex-col gap-2">
           {isCreator && (
-            <div className="flex flex-col gap-2">
+            <>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="bg-white/20 backdrop-blur hover:bg-white/30 text-white p-2 rounded-lg shadow transition-colors"
+                  title="الإعدادات"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setShowPlayerList(!showPlayerList)}
+                  className="bg-white/20 backdrop-blur hover:bg-white/30 text-white px-4 py-2 rounded-lg shadow transition-colors font-bold"
+                >
+                  👥 اللاعبين ({players.length})
+                </button>
+              </div>
+
+              {/* Settings Menu */}
+              {showSettings && (
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50">
+                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2">إعدادات اللعبة</h3>
+                  
+                  <div className="space-y-4">
+                    {/* Selection Mode */}
+                    <div>
+                      <label className="block text-sm font-bold mb-1">وضع التحديد</label>
+                      <div className="flex bg-gray-200 rounded-lg p-1">
+                        <button
+                          onClick={() => handleSelectionModeToggle('fill')}
+                          className={`flex-1 py-1 rounded-md text-sm font-bold transition-all ${selectionMode === 'fill' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          تلوين
+                        </button>
+                        <button
+                          onClick={() => handleSelectionModeToggle('beam')}
+                          className={`flex-1 py-1 rounded-md text-sm font-bold transition-all ${selectionMode === 'beam' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          شعاع
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Zone Colors (Themes) */}
+      <div>
+                      <label className="block text-sm font-bold mb-2">سمة الألوان</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {COLOR_THEMES.map((theme) => (
+                          <button
+                            key={theme.id}
+                            onClick={() => handleSettingChange('theme', theme.id)}
+                            className={`
+                              relative overflow-hidden rounded-lg h-12 border-2 transition-all
+                              ${zoneColors.green === theme.green && zoneColors.orange === theme.orange 
+                                ? 'border-blue-500 scale-105 shadow-md' 
+                                : 'border-transparent hover:scale-105 hover:shadow-sm'}
+                            `}
+                            title={theme.name}
+                          >
+                            <div className="absolute inset-0 flex">
+                              <div className="w-1/2 h-full" style={{ backgroundColor: theme.orange }} />
+                              <div className="w-1/2 h-full" style={{ backgroundColor: theme.green }} />
+                            </div>
+                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold text-shadow-sm bg-black/20">
+                              {theme.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Toggles */}
+                    <div className="space-y-3 pt-2 border-t border-gray-200">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer group"
+                        onClick={() => handleSettingChange('showBee', !gameSettings.showBee)}
+                      >
+                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors">النحلة</span>
+                        <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out ${gameSettings.showBee ? 'bg-green-500' : 'bg-gray-300'}`}>
+                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBee ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                      
+                      <div 
+                        className="flex items-center justify-between cursor-pointer group"
+                        onClick={() => handleSettingChange('showBubbles', !gameSettings.showBubbles)}
+                      >
+                        <span className="text-sm font-bold group-hover:text-blue-600 transition-colors">الفقاعات</span>
+                        <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out ${gameSettings.showBubbles ? 'bg-green-500' : 'bg-gray-300'}`}>
+                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${gameSettings.showBubbles ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Player List Menu */}
+              {showPlayerList && (
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50 max-h-[60vh] overflow-y-auto">
+                  <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2">قائمة اللاعبين</h3>
+                  {players.length === 0 ? (
+                    <p className="text-gray-500 text-center py-2">لا يوجد لاعبين بعد</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {players.map((p, idx) => (
+                        <li key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded shadow-sm">
+                          <span className="font-bold">{p.name}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full text-white ${p.team === 'green' ? 'bg-[#3fa653]' : 'bg-[#f4841f]'}`}>
+                            {p.team === 'green' ? 'أخضر' : 'برتقالي'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               {/* Buzzer Status for Host */}
               {buzzer.active && (
-                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110">
+                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110 mt-2">
                   <div className="text-center">
                     <div className="text-2xl font-bold animate-pulse">{buzzer.playerName}</div>
                     <div className="text-sm">ضغط الزر!</div>
@@ -572,18 +736,12 @@ function App() {
                   </div>
                 </div>
               )}
-              <button
-                onClick={handleSelectionModeToggle}
-                className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur text-white font-bold shadow hover:bg-white/25 transition-colors text-sm"
-              >
-                وضع التحديد: {selectionMode === 'fill' ? 'تلوين' : 'شعاع'}
-              </button>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Right: Room Info */}
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
+        {/* Right: Room Info with Padding */}
+        <div className="pointer-events-auto flex flex-col items-end gap-2 pl-4">
           <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white">
             غرفة: {toArabicNumerals(roomId)}
           </div>
@@ -631,7 +789,7 @@ function App() {
                           width: `${GREEN_OUTER_EDGE_LENGTH}%`,
                           top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
                           height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: '#3fa653',
+                          backgroundColor: zoneColors.green,
                           clipPath: `polygon(0 0, 50% 100%, 100% 0)`
                         }}
                       />
@@ -662,7 +820,7 @@ function App() {
                           width: `${GREEN_OUTER_EDGE_LENGTH}%`,
                           bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
                           height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: '#3fa653',
+                          backgroundColor: zoneColors.green,
                           clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                         }}
                       />
@@ -725,7 +883,7 @@ function App() {
                           top: `${outerEdgeTop}%`,
                           height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
                           width: `${ORANGE_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: '#f4841f',
+                          backgroundColor: zoneColors.orange,
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                         }}
                       >
@@ -752,7 +910,7 @@ function App() {
                           top: `${outerEdgeTop}%`,
                           height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
                           width: `${ORANGE_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: '#f4841f',
+                          backgroundColor: zoneColors.orange,
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                           transform: 'scaleX(-1)'
                         }}
@@ -820,6 +978,8 @@ function App() {
                     size={HEX_SIZE} 
                     onCellClick={handleCellClick}
                     selectionMode={selectionMode}
+                    orangeColor={zoneColors.orange}
+                    greenColor={zoneColors.green}
                   />
                   {activeBeeCell && (
                     <Bee 
@@ -929,7 +1089,7 @@ function App() {
                       width: `${GREEN_OUTER_EDGE_LENGTH}%`,
                       top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
                       height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                      backgroundColor: '#3fa653',
+                      backgroundColor: zoneColors.green,
                       clipPath: `polygon(0 0, 50% 100%, 100% 0)`
                     }}
                   />
@@ -960,7 +1120,7 @@ function App() {
                       width: `${GREEN_OUTER_EDGE_LENGTH}%`,
                       bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
                       height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                      backgroundColor: '#3fa653',
+                      backgroundColor: zoneColors.green,
                       clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                     }}
                   />
@@ -1020,7 +1180,7 @@ function App() {
                       top: `${outerEdgeTop}%`,
                       height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
                       width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
-                      backgroundColor: '#f4841f',
+                      backgroundColor: zoneColors.orange,
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                     }}
                   >
@@ -1047,7 +1207,7 @@ function App() {
                       top: `${outerEdgeTop}%`,
                       height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
                       width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
-                      backgroundColor: '#f4841f',
+                      backgroundColor: zoneColors.orange,
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                       transform: 'scaleX(-1)'
                     }}
@@ -1079,6 +1239,8 @@ function App() {
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
               selectionMode={selectionMode}
+              orangeColor={zoneColors.orange}
+              greenColor={zoneColors.green}
             />
             {activeBeeCell && (
               <Bee 
