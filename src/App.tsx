@@ -8,7 +8,7 @@ import {
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
-import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET, FRAME_BORDER_WIDTH, FRAME_BORDER_COLOR, FRAME_BORDER_RADIUS, FRAME_INNER_SHADOW_X, FRAME_INNER_SHADOW_Y, FRAME_INNER_SHADOW_BLUR, FRAME_INNER_SHADOW_COLOR, FRAME_OUTER_SHADOW_X, FRAME_OUTER_SHADOW_Y, FRAME_OUTER_SHADOW_BLUR, FRAME_OUTER_SHADOW_COLOR, FRAME_EXTENSION_MULTIPLIER, FRAME_POSITION_PERCENTAGE_MULTIPLIER, FRAME_SIZE_PERCENTAGE_MULTIPLIER, FRAME_GUEST_MAX_WIDTH_BASE, FRAME_GUEST_MAX_HEIGHT_BASE, FRAME_HOST_MAX_WIDTH_BASE, FRAME_HOST_MAX_HEIGHT_BASE, FRAME_GUEST_MAX_WIDTH_EXTENSION_MULTIPLIER, FRAME_GUEST_MAX_HEIGHT_EXTENSION_MULTIPLIER, FRAME_HOST_MAX_WIDTH_EXTENSION_MULTIPLIER, FRAME_HOST_MAX_HEIGHT_EXTENSION_MULTIPLIER } from './constants';
+import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET, FRAME_BORDER_WIDTH, FRAME_BORDER_COLOR, FRAME_BORDER_RADIUS, FRAME_PADDING_HORIZONTAL, FRAME_PADDING_VERTICAL, FRAME_POSITION_OFFSET_X, FRAME_POSITION_OFFSET_Y } from './constants';
 import { db } from './firebase';
 import { ref, set, onValue, update, get, onDisconnect, runTransaction, push, remove } from 'firebase/database';
 import type { BubbleData, Player, BuzzerState } from './types';
@@ -792,41 +792,23 @@ function App() {
               >
                 {/* Real frame around zones for guest view - extends to cover outer edges */}
                 {(() => {
-                  // Calculate the maximum extension of zones beyond the container
-                  // Green zones extend up/down by: GREEN_INNER_EDGE_WIDTH + abs(GREEN_OUTER_EDGE_OFFSET) - GREEN_INNER_EDGE_POSITION
-                  const greenTopExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-                  const greenBottomExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-                  // Orange zones extend left/right by: ORANGE_INNER_EDGE_WIDTH + ORANGE_OUTER_EDGE_OFFSET
-                  const orangeLeftExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-                  const orangeRightExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-                  
-                  // Base container size
                   const baseSize = 'min(90vw, 60vh)';
-                  const baseMaxWidth = `${FRAME_GUEST_MAX_WIDTH_BASE}px`;
-                  const baseMaxHeight = `${FRAME_GUEST_MAX_HEIGHT_BASE}px`;
-                  
-                  // Calculate extensions
-                  const maxOrangeExtension = Math.max(orangeLeftExtension, orangeRightExtension);
-                  const maxGreenExtension = Math.max(greenTopExtension, greenBottomExtension);
-                  
-                  // Assemble shadow strings from constants
-                  const innerShadow = `inset ${FRAME_INNER_SHADOW_X}px ${FRAME_INNER_SHADOW_Y}px ${FRAME_INNER_SHADOW_BLUR}px ${FRAME_INNER_SHADOW_COLOR}`;
-                  const outerShadow = `${FRAME_OUTER_SHADOW_X}px ${FRAME_OUTER_SHADOW_Y}px ${FRAME_OUTER_SHADOW_BLUR}px ${FRAME_OUTER_SHADOW_COLOR}`;
+                  const baseMaxSize = '800px';
                   
                   return (
                     <div 
                       className="absolute z-[6] pointer-events-none"
                       style={{
-                        left: `calc(50% - ${maxOrangeExtension * FRAME_POSITION_PERCENTAGE_MULTIPLIER}%)`,
-                        top: `calc(50% - ${maxGreenExtension * FRAME_POSITION_PERCENTAGE_MULTIPLIER}%)`,
+                        left: `calc(50% + ${FRAME_POSITION_OFFSET_X}%)`,
+                        top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
                         transform: 'translate(-50%, -50%)',
-                        width: `calc(${baseSize} + ${maxOrangeExtension * FRAME_SIZE_PERCENTAGE_MULTIPLIER}%)`,
-                        height: `calc(${baseSize} + ${maxGreenExtension * FRAME_SIZE_PERCENTAGE_MULTIPLIER}%)`,
-                        maxWidth: `calc(${baseMaxWidth} + ${maxOrangeExtension * FRAME_GUEST_MAX_WIDTH_EXTENSION_MULTIPLIER}px)`,
-                        maxHeight: `calc(${baseMaxHeight} + ${maxGreenExtension * FRAME_GUEST_MAX_HEIGHT_EXTENSION_MULTIPLIER}px)`,
+                        width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
+                        height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
+                        maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 8}px)`,
+                        maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 8}px)`,
                         border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
                         borderRadius: `${FRAME_BORDER_RADIUS}px`,
-                        boxShadow: `${innerShadow}, ${outerShadow}`
+                        boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
                       }}
                     />
                   );
@@ -897,41 +879,23 @@ function App() {
         >
           {/* Real frame around zones - extends to cover outer edges */}
           {(() => {
-            // Calculate the maximum extension of zones beyond the container
-            // Green zones extend up/down by: GREEN_INNER_EDGE_WIDTH + abs(GREEN_OUTER_EDGE_OFFSET) - GREEN_INNER_EDGE_POSITION
-            const greenTopExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-            const greenBottomExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-            // Orange zones extend left/right by: ORANGE_INNER_EDGE_WIDTH + ORANGE_OUTER_EDGE_OFFSET
-            const orangeLeftExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-            const orangeRightExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * FRAME_EXTENSION_MULTIPLIER;
-            
-            // Base container size
             const baseSize = 'min(95vw, 95vh)';
-            const baseMaxWidth = `${FRAME_HOST_MAX_WIDTH_BASE}px`;
-            const baseMaxHeight = `${FRAME_HOST_MAX_HEIGHT_BASE}px`;
-            
-            // Calculate extensions
-            const maxOrangeExtension = Math.max(orangeLeftExtension, orangeRightExtension);
-            const maxGreenExtension = Math.max(greenTopExtension, greenBottomExtension);
-            
-            // Assemble shadow strings from constants
-            const innerShadow = `inset ${FRAME_INNER_SHADOW_X}px ${FRAME_INNER_SHADOW_Y}px ${FRAME_INNER_SHADOW_BLUR}px ${FRAME_INNER_SHADOW_COLOR}`;
-            const outerShadow = `${FRAME_OUTER_SHADOW_X}px ${FRAME_OUTER_SHADOW_Y}px ${FRAME_OUTER_SHADOW_BLUR}px ${FRAME_OUTER_SHADOW_COLOR}`;
+            const baseMaxSize = '900px';
             
             return (
               <div 
                 className="absolute z-[6] pointer-events-none"
                 style={{
-                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% - ${maxOrangeExtension * FRAME_POSITION_PERCENTAGE_MULTIPLIER}%)`,
-                  top: `calc(50% - ${maxGreenExtension * FRAME_POSITION_PERCENTAGE_MULTIPLIER}%)`,
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% + ${FRAME_POSITION_OFFSET_X}%)`,
+                  top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
                   transform: 'translate(-50%, -50%)',
-                  width: `calc(${baseSize} + ${maxOrangeExtension * FRAME_SIZE_PERCENTAGE_MULTIPLIER}%)`,
-                  height: `calc(${baseSize} + ${maxGreenExtension * FRAME_SIZE_PERCENTAGE_MULTIPLIER}%)`,
-                  maxWidth: `calc(${baseMaxWidth} + ${maxOrangeExtension * FRAME_HOST_MAX_WIDTH_EXTENSION_MULTIPLIER}px)`,
-                  maxHeight: `calc(${baseMaxHeight} + ${maxGreenExtension * FRAME_HOST_MAX_HEIGHT_EXTENSION_MULTIPLIER}px)`,
+                  width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
+                  height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
+                  maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 9}px)`,
+                  maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 9}px)`,
                   border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
                   borderRadius: `${FRAME_BORDER_RADIUS}px`,
-                  boxShadow: `${innerShadow}, ${outerShadow}`
+                  boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
                 }}
               />
             );

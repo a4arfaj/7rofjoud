@@ -60,39 +60,12 @@ export const BEAM_ANIMATION_SPEED = 1.2; // Speed of beam mode animation in seco
 // Controls how fast the beam spins around the cell border
 // Lower values = faster spin, Higher values = slower spin
 
-// Frame Controls
-export const FRAME_BORDER_WIDTH = 8; // Width of the frame border in pixels
-// Controls the thickness of the frame border around the zones
-export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Color of the frame border
-// Controls the color and opacity of the frame border (RGBA format)
-export const FRAME_BORDER_RADIUS = 20; // Border radius of the frame corners in pixels
-// Controls how rounded the frame corners are (0 = square, higher = more rounded)
-
-// Frame Inner Shadow Controls
-export const FRAME_INNER_SHADOW_X = 0; // Horizontal offset of inner shadow in pixels
-export const FRAME_INNER_SHADOW_Y = 0; // Vertical offset of inner shadow in pixels
-export const FRAME_INNER_SHADOW_BLUR = 40; // Blur radius of inner shadow in pixels
-export const FRAME_INNER_SHADOW_COLOR = 'rgba(255, 255, 255, 0.1)'; // Color of inner shadow (RGBA format)
-// Assembles to: inset 0 0 40px rgba(255, 255, 255, 0.1)
-
-// Frame Outer Shadow Controls
-export const FRAME_OUTER_SHADOW_X = 0; // Horizontal offset of outer shadow in pixels
-export const FRAME_OUTER_SHADOW_Y = 0; // Vertical offset of outer shadow in pixels
-export const FRAME_OUTER_SHADOW_BLUR = 60; // Blur radius of outer shadow in pixels
-export const FRAME_OUTER_SHADOW_COLOR = 'rgba(0, 0, 0, 0.5)'; // Color of outer shadow (RGBA format)
-// Assembles to: 0 0 60px rgba(0, 0, 0, 0.5)
-
-// Frame Size Calculation Constants
-export const FRAME_EXTENSION_MULTIPLIER = 0.01; // Multiplier for converting percentage to decimal (0.01 = 1%)
-export const FRAME_POSITION_PERCENTAGE_MULTIPLIER = 100; // Multiplier for percentage calculations
-export const FRAME_SIZE_PERCENTAGE_MULTIPLIER = 200; // Multiplier for width/height extension calculations
-export const FRAME_GUEST_MAX_WIDTH_BASE = 800; // Base max width in pixels for guest frame
-export const FRAME_GUEST_MAX_HEIGHT_BASE = 800; // Base max height in pixels for guest frame
-export const FRAME_HOST_MAX_WIDTH_BASE = 900; // Base max width in pixels for host frame
-export const FRAME_HOST_MAX_HEIGHT_BASE = 900; // Base max height in pixels for host frame
-// Extension multipliers for max-width/max-height calculations
-export const FRAME_GUEST_MAX_WIDTH_EXTENSION_MULTIPLIER = 800; // Multiplier for guest max-width extension
-export const FRAME_GUEST_MAX_HEIGHT_EXTENSION_MULTIPLIER = 800; // Multiplier for guest max-height extension
-export const FRAME_HOST_MAX_WIDTH_EXTENSION_MULTIPLIER = 900; // Multiplier for host max-width extension
-export const FRAME_HOST_MAX_HEIGHT_EXTENSION_MULTIPLIER = 900; // Multiplier for host max-height extension
+// Frame Controls - Edit size and position here
+export const FRAME_BORDER_WIDTH = 8; // Frame border thickness in pixels
+export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Frame border color
+export const FRAME_BORDER_RADIUS = 20; // Frame corner radius in pixels
+export const FRAME_PADDING_HORIZONTAL = 65; // Extra width added to frame (as % of container)
+export const FRAME_PADDING_VERTICAL = 86; // Extra height added to frame (as % of container)
+export const FRAME_POSITION_OFFSET_X = 0; // Horizontal position adjustment (positive = right, negative = left, as % of container)
+export const FRAME_POSITION_OFFSET_Y = 0; // Vertical position adjustment (positive = down, negative = up, as % of container)
 
