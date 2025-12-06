@@ -602,29 +602,6 @@ function App() {
              {/* Bubbles Overlay */}
              <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
              
-              {/* Frame borders - positioned closer to grid */}
-              <div className="absolute inset-0 z-40 pointer-events-none">
-                {/* Left border */}
-                <div className="absolute left-[5%] top-[5%] bottom-[5%] w-[4px] bg-white/20 shadow-[4px_0_20px_rgba(0,0,0,0.3)]" />
-                {/* Right border */}
-                <div className="absolute right-[5%] top-[5%] bottom-[5%] w-[4px] bg-white/20 shadow-[-4px_0_20px_rgba(0,0,0,0.3)]" />
-                {/* Top border */}
-                <div className="absolute top-[5%] left-[5%] right-[5%] h-[4px] bg-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]" />
-              </div>
-
-              {/* Zones container - extends from frame borders */}
-              <div 
-                className="absolute z-[1]"
-                style={{
-                  left: '5%',
-                  right: '5%',
-                  top: '5%',
-                  bottom: '5%'
-                }}
-              >
-                {/* Base purple background */}
-                <div className="absolute inset-0 bg-[#5e35b1]" />
-              </div>
 
               {/* Green zones - positioned relative to grid container */}
               <div 
@@ -813,6 +790,23 @@ function App() {
                   overflow: 'visible'
                 }}
               >
+                {/* Real frame around zones for guest view */}
+                <div 
+                  className="absolute z-[6] pointer-events-none"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 'min(90vw, 60vh)',
+                    height: 'min(90vw, 60vh)',
+                    maxWidth: '800px',
+                    maxHeight: '800px',
+                    aspectRatio: '1 / 1',
+                    border: '8px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '20px',
+                    boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
                 {/* Hex grid on top */}
                 <div className="absolute inset-0 flex items-center justify-center" style={boardGlow}>
                   <HexGrid 
@@ -864,9 +858,6 @@ function App() {
       <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]">
         {/* Bubbles Overlay */}
         <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
-
-        {/* Base purple background */}
-        <div className="absolute inset-0 bg-[#5e35b1] z-[1]" />
         
         {/* Game container that scales uniformly */}
         <div 
@@ -880,6 +871,23 @@ function App() {
             overflow: 'visible'
           }}
         >
+          {/* Real frame around zones */}
+          <div 
+            className="absolute z-[6] pointer-events-none"
+            style={{
+              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(95vw, 95vh)',
+              height: 'min(95vw, 95vh)',
+              maxWidth: '900px',
+              maxHeight: '900px',
+              aspectRatio: '1 / 1',
+              border: '8px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '20px',
+              boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+            }}
+          />
 
           {/* Green zones - positioned relative to grid container */}
           <div 
