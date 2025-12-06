@@ -8,13 +8,16 @@ interface BeeProps {
   onFinish: () => void;
   hexSize: number;
   grid: HexCellData[];
+  startTime?: number; // Firebase timestamp for sync across all clients
 }
 
-const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize, grid }) => {
+const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize, grid, startTime }) => {
   const posRef = useRef({ x: -200, y: 200 }); // Start off-screen left
   const stateRef = useRef<'flying-in' | 'landed' | 'leaving'>('flying-in');
   const rotationRef = useRef(0);
-  const startTimeRef = useRef(Date.now());
+  // Use startTime from Firebase for sync, fallback to local time
+  const startTimeRef = useRef(startTime || Date.now());
+  const landedTimeRef = useRef<number | null>(null);
   const requestRef = useRef<number | undefined>(undefined);
   const hasCalledReachTarget = useRef(false);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -41,10 +44,12 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       posRef.current = { x: viewBoxMinX - 100, y: viewBoxMinY + viewBoxHeight / 2 };
       stateRef.current = 'flying-in';
       rotationRef.current = 0;
-      startTimeRef.current = Date.now();
+      // Use startTime from Firebase for sync across all clients
+      startTimeRef.current = startTime || Date.now();
+      landedTimeRef.current = null;
       hasCalledReachTarget.current = false;
     }
-  }, [targetCell, viewBoxMinX, viewBoxMinY, viewBoxHeight]);
+  }, [targetCell, viewBoxMinX, viewBoxMinY, viewBoxHeight, startTime]);
 
   const animate = useCallback(() => {
     if (!targetCell) {
@@ -57,55 +62,67 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
     const targetY = targetPixel.y;
 
     const now = Date.now();
-    const elapsed = now - startTimeRef.current;
     const pos = posRef.current;
     const state = stateRef.current;
 
     if (state === 'flying-in') {
-      const dx = targetX - pos.x;
-      const dy = targetY - pos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 10) {
+      // Calculate position based on time elapsed since Firebase startTime
+      // This ensures all clients see the bee at the same position
+      const flyElapsed = now - startTimeRef.current;
+      const flySpeed = 80; // pixels per second
+      const totalDistance = Math.sqrt(
+        Math.pow(targetX - (viewBoxMinX - 100), 2) + 
+        Math.pow(targetY - (viewBoxMinY + viewBoxHeight / 2), 2)
+      );
+      const flyDuration = (totalDistance / flySpeed) * 1000; // ms to reach target
+      const progress = Math.min(flyElapsed / flyDuration, 1);
+      
+      const startX = viewBoxMinX - 100;
+      const startY = viewBoxMinY + viewBoxHeight / 2;
+      
+      if (progress >= 1) {
         stateRef.current = 'landed';
         posRef.current = { x: targetX, y: targetY };
-        rotationRef.current = 0; // Face forward when landed
-        startTimeRef.current = now;
+        rotationRef.current = 0;
+        landedTimeRef.current = now;
       } else {
-        const speed = 1.2; // Slower movement
-        const angle = Math.atan2(dy, dx);
         posRef.current = {
-          x: pos.x + Math.cos(angle) * speed,
-          y: pos.y + Math.sin(angle) * speed
+          x: startX + (targetX - startX) * progress,
+          y: startY + (targetY - startY) * progress
         };
+        const dx = targetX - pos.x;
+        const dy = targetY - pos.y;
+        const angle = Math.atan2(dy, dx);
         rotationRef.current = angle * (180 / Math.PI) + 90;
       }
     } else if (state === 'landed') {
+      const landedElapsed = landedTimeRef.current ? now - landedTimeRef.current : 0;
+      
       // After 1 second, remove color
-      if (elapsed >= 1000 && !hasCalledReachTarget.current) {
+      if (landedElapsed >= 1000 && !hasCalledReachTarget.current) {
         hasCalledReachTarget.current = true;
         onReachTarget();
       }
       
       // After 2 seconds total, fly away
-      if (elapsed >= 2000) {
+      if (landedElapsed >= 2000) {
         stateRef.current = 'leaving';
-        startTimeRef.current = now;
+        landedTimeRef.current = now; // reuse for leaving start time
       }
       // Stay still when landed (no bobbing)
     } else if (state === 'leaving') {
       // Fly away to top-right (in SVG coordinates)
       const exitX = viewBoxMinX + viewBoxWidth + 200;
       const exitY = viewBoxMinY - 100;
-      const dx = exitX - pos.x;
-      const dy = exitY - pos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const leaveElapsed = landedTimeRef.current ? now - landedTimeRef.current : 0;
 
-      if (dist < 20 || elapsed > 5000) {
+      if (leaveElapsed > 3000) {
         onFinish();
         return;
       } else {
         const speed = 5;
+        const dx = exitX - pos.x;
+        const dy = exitY - pos.y;
         const angle = Math.atan2(dy, dx);
         posRef.current = {
           x: pos.x + Math.cos(angle) * speed,

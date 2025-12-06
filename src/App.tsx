@@ -26,6 +26,7 @@ function App() {
   const [roomError, setRoomError] = useState<string>('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
+  const [beeStartTime, setBeeStartTime] = useState<number | null>(null);
   const lastBeeTimestampRef = useRef<number>(0);
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
@@ -250,10 +251,12 @@ function App() {
           const targetCell = (data.grid || []).find((c: any) => c.id === data.beeTarget.id);
           if (targetCell) {
             setActiveBeeCell(targetCell);
+            setBeeStartTime(data.beeTarget.timestamp); // Sync start time for all clients
           }
         } else if (!data.beeTarget && activeBeeCell) {
           // If beeTarget is cleared in Firebase, clear local state too
           setActiveBeeCell(null);
+          setBeeStartTime(null);
         }
         // Sync bubbles
         if (data.bubbles) {
@@ -825,6 +828,7 @@ function App() {
                       onFinish={handleBeeFinish} 
                       hexSize={HEX_SIZE}
                       grid={grid}
+                      startTime={beeStartTime || undefined}
                     />
                   )}
                   <div className="absolute inset-0 z-20 cursor-default" />
@@ -1063,6 +1067,7 @@ function App() {
                 onFinish={handleBeeFinish} 
                 hexSize={HEX_SIZE}
                 grid={grid}
+                startTime={beeStartTime || undefined}
               />
             )}
           </div>
