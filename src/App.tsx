@@ -818,6 +818,15 @@ function App() {
                     onCellClick={handleCellClick}
                     selectionMode={selectionMode}
                   />
+                  {activeBeeCell && (
+                    <Bee 
+                      targetCell={activeBeeCell} 
+                      onReachTarget={handleBeeReachTarget} 
+                      onFinish={handleBeeFinish} 
+                      hexSize={HEX_SIZE}
+                      grid={grid}
+                    />
+                  )}
                   <div className="absolute inset-0 z-20 cursor-default" />
                 </div>
               </div>
