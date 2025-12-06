@@ -105,7 +105,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [targetCell, state, pos, onReachTarget, onFinish, hexSize]);
+  }, [targetCell, hexSize, grid, onReachTarget, onFinish]);
 
   if (!targetCell) return null;
 
