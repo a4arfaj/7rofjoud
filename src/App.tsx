@@ -251,6 +251,9 @@ function App() {
           if (targetCell) {
             setActiveBeeCell(targetCell);
           }
+        } else if (!data.beeTarget && activeBeeCell) {
+          // If beeTarget is cleared in Firebase, clear local state too
+          setActiveBeeCell(null);
         }
         // Sync bubbles
         if (data.bubbles) {
@@ -387,6 +390,12 @@ function App() {
 
   const handleBeeFinish = () => {
     setActiveBeeCell(null);
+    // Clear beeTarget from Firebase so next bee can spawn
+    if (isCreator && roomId) {
+      update(ref(db, `rooms/${roomId}`), {
+        beeTarget: null
+      });
+    }
   };
 
   // Host Bubble Spawn Logic
