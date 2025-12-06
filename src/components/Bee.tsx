@@ -70,12 +70,8 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         stateRef.current = 'hovering';
         posRef.current = { x: targetX, y: targetY };
         startTimeRef.current = now;
-        if (!hasCalledReachTarget.current) {
-          hasCalledReachTarget.current = true;
-          onReachTarget();
-        }
       } else {
-        const speed = 3;
+        const speed = 1.2; // Slower movement
         const angle = Math.atan2(dy, dx);
         posRef.current = {
           x: pos.x + Math.cos(angle) * speed,
@@ -84,6 +80,12 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         rotationRef.current = angle * (180 / Math.PI) + 90;
       }
     } else if (state === 'hovering') {
+      // Call onReachTarget when entering hover state (color disappears while hovering)
+      if (!hasCalledReachTarget.current) {
+        hasCalledReachTarget.current = true;
+        onReachTarget();
+      }
+      
       if (elapsed > 3000) {
         stateRef.current = 'leaving';
         startTimeRef.current = now;
