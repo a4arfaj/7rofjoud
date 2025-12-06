@@ -5,29 +5,43 @@ export const ARABIC_LETTERS = [
 
 export const GRID_SIZE = 5; // 5 rows x 5 columns = 25 cells
 
-export const HEX_SIZE = 55; // Radius of a single hex in pixels
+export const HEX_SIZE = 65; // Radius of a single hex in pixels
 export const HEX_SPACING = 1.0; // Spacing between hex centers (1.0 = touching)
+export const HONEYCOMB_HORIZONTAL_POSITION = 0; // Horizontal position offset of honeycomb (as % of container width)
+// Controls the horizontal position of the honeycomb grid
+// 0 = centered, positive = move right, negative = move left, no limitation on values
 
-// Background zone distances from center (as percentages)
-// Lower values = zones extend more toward center
-// Higher values = zones stay closer to edges
-export const ORANGE_ZONE_DISTANCE = 60; // How far orange zones extend INTO the container (0-50)
-// NOTE: When viewport width < 430px, this is automatically set to 20
-// 0 = stops at container edge
-// Higher values = extends further into container, closer to honeycomb
-export const GREEN_ZONE_DISTANCE = 80; // Distance from center for green top/bottom zones (0-50, where 50 = center)
+// Orange Zone Inner Edge Controls
+export const ORANGE_INNER_EDGE_LENGTH = 2.7; // Vertical span of orange zone inner edge (as % of grid height)
+// Controls how tall the inner vertical edge is
+// 100 = inner edge spans full grid height, 50 = half grid height, etc.
+export const ORANGE_INNER_EDGE_WIDTH = 60; // Horizontal depth of orange zones (as % of container width)
+// Controls how far orange zones extend from the sides toward the center
+// Higher values = zones extend further toward honeycomb
+export const ORANGE_INNER_EDGE_POSITION = 50; // Horizontal offset of inner edge (as % of grid width)
+// Moves the inner edge left/right. Positive = toward center, Negative = toward edge
+// 0 = aligned with grid edge, no limitation on values
+export const ORANGE_OUTER_EDGE_LENGTH = 120; // Vertical length of orange zone outer edge (as % of grid height)
+// Controls the length of the outer vertical edge (left/right edge) of orange zones
+// 100 = full grid height, 50 = half grid height, no limitation on values
+export const ORANGE_OUTER_EDGE_OFFSET = 5.78; // Horizontal offset of orange zones from grid (as % of grid width)
+// Controls how far orange zones extend outward from the grid edges
+// This replaces the old 2.5vw value, now as percentage of grid container
 
-// Background zone width/depth (as percentages)
-export const ORANGE_ZONE_WIDTH = 20; // Vertical coverage of orange zones (0-50, controls how much height they cover)
-// Orange zones cover from ORANGE_ZONE_WIDTH% to (100 - ORANGE_ZONE_WIDTH)%
-// Lower values = wider coverage (zones cover more vertical space)
-// Higher values = narrower coverage (zones cover less vertical space)
-
-// Inner edge length control
-export const ORANGE_INNER_EDGE_LENGTH = 20; // Length/height of the inner vertical edge (0-100)
-// NOTE: When viewport width < 430px, this is automatically set to 5
-// Controls how tall the inner edge of orange zones is (centered vertically)
-// 50 = inner edge spans from 25% to 75% of height
-// Lower values = shorter inner edge (e.g., 30 = spans from 35% to 65%)
-// Higher values = taller inner edge (e.g., 70 = spans from 15% to 85%)
+// Green Zone Inner Edge Controls  
+export const GREEN_INNER_EDGE_LENGTH = 20; // Horizontal span of green zone inner edge (as % of grid width)
+// Controls how wide the inner horizontal edge is
+// 100 = inner edge spans full grid width, 50 = half grid width, etc.
+export const GREEN_INNER_EDGE_WIDTH = 90; // Vertical depth of green zones (as % from top/bottom)
+// Controls how far green zones extend from top/bottom toward the center
+// Higher values = zones extend further toward honeycomb
+export const GREEN_INNER_EDGE_POSITION = 76; // Vertical offset of inner edge (as % of grid height)
+// Moves the inner edge up/down. Positive = toward center, Negative = toward edge
+// 0 = aligned with grid edge, no limitation on values
+export const GREEN_OUTER_EDGE_LENGTH = 130.9; // Horizontal length of green zone outer edge (as % of grid width)
+// Controls the length of the outer horizontal edge (top/bottom edge) of green zones
+// 100 = full grid width, 50 = half grid width, no limitation on values
+export const GREEN_OUTER_EDGE_OFFSET = -4.000000; // Vertical offset of green zones from grid (as % of grid height)
+// Controls how far green zones extend outward from the grid edges
+// This replaces the old 2.5vh value, now as percentage of grid container
 

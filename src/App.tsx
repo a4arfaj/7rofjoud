@@ -6,7 +6,7 @@ import {
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
-import { ARABIC_LETTERS, HEX_SIZE, ORANGE_ZONE_DISTANCE, GREEN_ZONE_DISTANCE, ORANGE_INNER_EDGE_LENGTH } from './constants';
+import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET } from './constants';
 import { db } from './firebase';
 import { ref, set, onValue, update, get, onDisconnect, runTransaction } from 'firebase/database';
 
@@ -34,14 +34,8 @@ function App() {
   const [roomError, setRoomError] = useState<string>('');
   const [hostName, setHostName] = useState<string | null>(null);
   
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
-
-  // Responsive orange zone parameters - use smaller values when width < 430px
-  const isSmallScreen = viewportWidth < 430;
-  const orangeZoneDistance = isSmallScreen ? 20 : ORANGE_ZONE_DISTANCE;
-  const orangeInnerEdgeLength = isSmallScreen ? 39 : ORANGE_INNER_EDGE_LENGTH;
 
   // Initialize audio context on first user interaction
   const getAudioContext = async () => {
@@ -339,15 +333,6 @@ function App() {
 
   // Win detection disabled - free editing enabled
 
-  // Track viewport width for responsive design
-  useEffect(() => {
-    const handleResize = () => {
-      setViewportWidth(window.innerWidth);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const boardGlow: CSSProperties = {}; // No shadows
 
@@ -474,17 +459,48 @@ function App() {
               >
                 {/* Base purple background */}
                 <div className="absolute inset-0 bg-[#5e35b1]" />
-                
-                {/* Green zones at top and bottom - fill from frame edges */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundColor: '#3fa653',
-                    clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
-                  }}
-                />
-                {/* Floating Names in Green Zone (Top) */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
+              </div>
+
+              {/* Green zones - positioned relative to grid container */}
+              <div 
+                className="absolute z-[2] pointer-events-none"
+                style={{
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 'min(90vw, 60vh)',
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
+                  aspectRatio: '1 / 1'
+                }}
+              >
+                {/* Green zones at top and bottom - aligned to grid edges */}
+                {/* GREEN_INNER_EDGE_POSITION moves inner edge vertically (positive = toward center) */}
+                {/* GREEN_OUTER_EDGE_LENGTH controls the horizontal length of the outer edge */}
+                {(() => {
+                  const outerEdgeLeft = 50 - (GREEN_OUTER_EDGE_LENGTH / 2);
+                  return (
+                    <>
+                      <div
+                        className="absolute"
+                        style={{
+                          left: `${outerEdgeLeft}%`,
+                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                          top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                          backgroundColor: '#3fa653',
+                          clipPath: `polygon(0 0, 50% 100%, 100% 0)`
+                        }}
+                      />
+                      {/* Floating Names in Green Zone (Top) */}
+                      <div className="absolute overflow-hidden pointer-events-none z-30" style={{
+                        left: `${outerEdgeLeft}%`,
+                        width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                        top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                        height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                        clipPath: `polygon(0 0, 50% 100%, 100% 0)`
+                      }}>
                    {players.filter(p => p.team === 'green' && p.name !== hostName)
                    .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
                      <div 
@@ -495,55 +511,78 @@ function App() {
                        {p.name}
                      </div>
                    ))}
-                </div>
+                      </div>
 
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundColor: '#3fa653',
-                    clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
-                  }}
-                />
-                 {/* Floating Names in Green Zone (Bottom) */}
-                 <div className="absolute inset-0 overflow-hidden pointer-events-none z-30" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
-                   {players.filter(p => p.team === 'green' && p.name !== hostName)
-                   .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                     <div 
-                       key={`green-bottom-${i}`} 
-                       className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                       style={getFloatingStyle(i, arr.length, 'green-bottom')}
-                     >
-                       {p.name}
-                     </div>
-                   ))}
-                </div>
+                      <div
+                        className="absolute"
+                        style={{
+                          left: `${outerEdgeLeft}%`,
+                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                          bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                          backgroundColor: '#3fa653',
+                          clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
+                        }}
+                      />
+                       {/* Floating Names in Green Zone (Bottom) */}
+                       <div className="absolute overflow-hidden pointer-events-none z-30" style={{
+                         left: `${outerEdgeLeft}%`,
+                         width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                         bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                         height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                         clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
+                       }}>
+                         {players.filter(p => p.team === 'green' && p.name !== hostName)
+                         .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                           <div 
+                             key={`green-bottom-${i}`} 
+                             className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                             style={getFloatingStyle(i, arr.length, 'green-bottom')}
+                           >
+                             {p.name}
+                           </div>
+                         ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
-              {/* Orange zones - constrained to frame area, ON TOP of green (z-index 5) */}
+              {/* Orange zones - positioned relative to grid container, ON TOP of green (z-index 5) */}
+              {/* Position zones relative to the grid container using CSS calc */}
               <div 
                 className="absolute z-[5] pointer-events-none"
                 style={{
-                  left: '5%',
-                  right: '5%',
-                  top: '5%',
-                  bottom: '5%'
+                  // Position to match grid container: centered, min(90vw, 60vh) with max 800px
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 'min(90vw, 60vh)',
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
+                  aspectRatio: '1 / 1'
                 }}
               >
-                {/* Calculate inner edge positions based on responsive length parameter */}
                 {(() => {
-                  // Inner edge spans orangeInnerEdgeLength% of height, centered
-                  const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
-                  const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
+                  // Inner edges are positioned relative to grid container (100% = full grid height)
+                  // ORANGE_INNER_EDGE_LENGTH is % of grid height
+                  // ORANGE_INNER_EDGE_POSITION moves inner edge horizontally (positive = toward center)
+                  const innerEdgeTop = 50 - (ORANGE_INNER_EDGE_LENGTH / 2);
+                  const innerEdgeBottom = 50 + (ORANGE_INNER_EDGE_LENGTH / 2);
+                  // ORANGE_OUTER_EDGE_LENGTH controls the vertical length of the outer edge
+                  const outerEdgeTop = 50 - (ORANGE_OUTER_EDGE_LENGTH / 2);
+                  
                   return (
                     <>
                       {/* Left orange zone */}
                       <div
                         className="absolute"
                         style={{
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${orangeZoneDistance}%`,
+                          left: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                          top: `${outerEdgeTop}%`,
+                          height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                          width: `${ORANGE_INNER_EDGE_WIDTH}%`,
                           backgroundColor: '#f4841f',
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                         }}
@@ -567,10 +606,10 @@ function App() {
                       <div
                         className="absolute"
                         style={{
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${orangeZoneDistance}%`,
+                          right: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                          top: `${outerEdgeTop}%`,
+                          height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                          width: `${ORANGE_INNER_EDGE_WIDTH}%`,
                           backgroundColor: '#f4841f',
                           clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                           transform: 'scaleX(-1)'
@@ -600,6 +639,7 @@ function App() {
               <div 
                 className="relative z-10"
                 style={{
+                  left: `${HONEYCOMB_HORIZONTAL_POSITION}%`,
                   width: 'min(90vw, 60vh)', // Reduced height constraint for guests
                   height: 'min(90vw, 60vh)',
                   maxWidth: '800px',
@@ -645,10 +685,13 @@ function App() {
         </div>
       ) : (
       /* Host UI: Full Screen Game Board */
-      <div className="relative w-full h-screen flex items-center justify-center">
+      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]">
+        {/* Base purple background */}
+        <div className="absolute inset-0 bg-[#5e35b1] z-[1]" />
+        
         {/* Game container that scales uniformly */}
         <div 
-          className="relative"
+          className="relative z-10"
           style={{
             width: 'min(95vw, 95vh)',
             height: 'min(95vw, 95vh)',
@@ -658,78 +701,126 @@ function App() {
             overflow: 'visible'
           }}
         >
-          {/* Background zones inside the container - green (z-index 1) */}
-          <div className="absolute inset-0 z-[1]">
-            {/* Base green background */}
-            <div className="absolute inset-0 bg-[#3fa653]" />
-            
-            {/* Green zones at top and bottom - angled/diagonal */}
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundColor: '#3fa653',
-                clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)`
-              }}
-            />
-            {/* Floating Names in Green Zone (Top) */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 0, 50% ${GREEN_ZONE_DISTANCE}%, 100% 0)` }}>
-               {players.filter(p => p.team === 'green' && p.name !== hostName)
-               .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                 <div 
-                   key={`green-top-${i}`} 
-                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                   style={getFloatingStyle(i, arr.length, 'green-top')}
-                 >
-                   {p.name}
-                 </div>
-               ))}
-            </div>
 
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundColor: '#3fa653',
-                clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)`
-              }}
-            />
-             {/* Floating Names in Green Zone (Bottom) */}
-             <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: `polygon(0 100%, 50% ${100 - GREEN_ZONE_DISTANCE}%, 100% 100%)` }}>
-               {players.filter(p => p.team === 'green' && p.name !== hostName)
-               .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
-                 <div 
-                   key={`green-bottom-${i}`} 
-                   className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
-                   style={getFloatingStyle(i, arr.length, 'green-bottom')}
-                 >
-                   {p.name}
-                 </div>
-               ))}
-            </div>
+          {/* Green zones - positioned relative to grid container */}
+          <div 
+            className="absolute z-[2] pointer-events-none"
+            style={{
+              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(95vw, 95vh)',
+              height: 'min(95vw, 95vh)',
+              maxWidth: '900px',
+              maxHeight: '900px',
+              aspectRatio: '1 / 1'
+            }}
+          >
+            {/* Green zones at top and bottom - aligned to grid edges */}
+            {/* GREEN_INNER_EDGE_POSITION moves inner edge vertically (positive = toward center) */}
+            {/* GREEN_OUTER_EDGE_LENGTH controls the horizontal length of the outer edge */}
+            {(() => {
+              const outerEdgeLeft = 50 - (GREEN_OUTER_EDGE_LENGTH / 2);
+              return (
+                <>
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `${outerEdgeLeft}%`,
+                      width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                      top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                      height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                      backgroundColor: '#3fa653',
+                      clipPath: `polygon(0 0, 50% 100%, 100% 0)`
+                    }}
+                  />
+                  {/* Floating Names in Green Zone (Top) */}
+                  <div className="absolute overflow-hidden pointer-events-none z-30" style={{
+                    left: `${outerEdgeLeft}%`,
+                    width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                    top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                    height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                    clipPath: `polygon(0 0, 50% 100%, 100% 0)`
+                  }}>
+                     {players.filter(p => p.team === 'green' && p.name !== hostName)
+                     .slice(0, Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                       <div 
+                         key={`green-top-${i}`} 
+                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                         style={getFloatingStyle(i, arr.length, 'green-top')}
+                       >
+                         {p.name}
+                       </div>
+                     ))}
+                  </div>
+
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `${outerEdgeLeft}%`,
+                      width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                      bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                      height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                      backgroundColor: '#3fa653',
+                      clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
+                    }}
+                  />
+                   {/* Floating Names in Green Zone (Bottom) */}
+                   <div className="absolute overflow-hidden pointer-events-none z-30" style={{
+                     left: `${outerEdgeLeft}%`,
+                     width: `${GREEN_OUTER_EDGE_LENGTH}%`,
+                     bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
+                     height: `${GREEN_INNER_EDGE_WIDTH}%`,
+                     clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
+                   }}>
+                     {players.filter(p => p.team === 'green' && p.name !== hostName)
+                     .slice(Math.ceil(players.filter(p => p.team === 'green' && p.name !== hostName).length / 2)).map((p, i, arr) => (
+                       <div 
+                         key={`green-bottom-${i}`} 
+                         className="absolute text-white font-bold text-shadow-md bg-black/20 px-3 py-1 rounded-full whitespace-nowrap text-xl md:text-2xl animate-pulse"
+                         style={getFloatingStyle(i, arr.length, 'green-bottom')}
+                       >
+                         {p.name}
+                       </div>
+                     ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
           
-          {/* Orange zones wrapper - extends to viewport edges, ON TOP of green (z-index 5) */}
+          {/* Orange zones wrapper - positioned relative to grid, extends to viewport edges, ON TOP of green (z-index 5) */}
           <div className="absolute z-[5]" style={{ 
-            left: 'calc(-50vw + 50%)', 
-            top: 'calc(-50vh + 50%)',
-            width: '100vw',
-            height: '100vh',
+            left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(95vw, 95vh)',
+            height: 'min(95vw, 95vh)',
+            maxWidth: '900px',
+            maxHeight: '900px',
+            aspectRatio: '1 / 1',
             pointerEvents: 'none'
           }}>
-            {/* Calculate inner edge positions based on responsive length parameter */}
-            {(() => {
-              // Inner edge spans orangeInnerEdgeLength% of height, centered
-              const innerEdgeTop = 50 - (orangeInnerEdgeLength / 2);
-              const innerEdgeBottom = 50 + (orangeInnerEdgeLength / 2);
+                {/* Calculate inner edge positions relative to grid container */}
+                {/* ORANGE_INNER_EDGE_POSITION moves inner edge horizontally (positive = toward center) */}
+                {/* ORANGE_OUTER_EDGE_LENGTH controls the vertical length of the outer edge */}
+                {(() => {
+                  // Inner edges are positioned relative to grid container (100% = full grid height)
+                  // ORANGE_INNER_EDGE_LENGTH is % of grid height
+                  const innerEdgeTop = 50 - (ORANGE_INNER_EDGE_LENGTH / 2);
+                  const innerEdgeBottom = 50 + (ORANGE_INNER_EDGE_LENGTH / 2);
+                  // ORANGE_OUTER_EDGE_LENGTH controls the vertical length of the outer edge
+                  const outerEdgeTop = 50 - (ORANGE_OUTER_EDGE_LENGTH / 2);
               return (
                 <>
                   {/* Left orange zone */}
                   <div
                     className="absolute"
                     style={{
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `calc(2.5vw + ${orangeZoneDistance}%)`,
+                      left: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                      top: `${outerEdgeTop}%`,
+                      height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                      width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
                       backgroundColor: '#f4841f',
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
                     }}
@@ -753,10 +844,10 @@ function App() {
                   <div
                     className="absolute"
                     style={{
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `calc(2.5vw + ${orangeZoneDistance}%)`,
+                      right: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                      top: `${outerEdgeTop}%`,
+                      height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                      width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
                       backgroundColor: '#f4841f',
                       clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
                       transform: 'scaleX(-1)'
