@@ -7,9 +7,10 @@ type HexGridProps = {
   grid: HexCellData[];
   size: number;
   onCellClick: (id: string) => void;
+  selectionMode?: 'fill' | 'beam';
 };
 
-function HexGrid({ grid, size, onCellClick }: HexGridProps) {
+function HexGrid({ grid, size, onCellClick, selectionMode = 'fill' }: HexGridProps) {
   if (grid.length === 0) {
     return null;
   }
@@ -40,6 +41,7 @@ function HexGrid({ grid, size, onCellClick }: HexGridProps) {
             size={size}
             layoutSize={layoutSize}
             onClick={onCellClick}
+            selectionMode={selectionMode}
           />
         ))}
       </g>

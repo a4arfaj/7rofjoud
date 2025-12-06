@@ -12,7 +12,7 @@ interface AnimatedBubble extends BubbleData {
 
 const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
   const [animatedBubbles, setAnimatedBubbles] = useState<AnimatedBubble[]>([]);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const animate = () => {

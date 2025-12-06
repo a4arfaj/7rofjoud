@@ -53,3 +53,18 @@ body {
 .glowing-yellow-glow {
   animation: glow-pulse-background 1.5s ease-in-out infinite;
 }
+
+@keyframes selection-beam-spin {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -200;
+  }
+}
+
+.selection-beam {
+  stroke-dasharray: 50 25;
+  animation: selection-beam-spin 1.2s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+}

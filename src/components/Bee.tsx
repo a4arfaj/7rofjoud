@@ -14,7 +14,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish
   const [pos, setPos] = useState(startPos);
   const [state, setState] = useState<'flying-in' | 'hovering' | 'leaving'>('flying-in');
   const [rotation, setRotation] = useState(0);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {

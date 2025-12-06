@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import HexGrid from './components/HexGrid';
 import Lobby from './components/Lobby';
 import Bubbles from './components/Bubbles';
@@ -22,6 +22,7 @@ function App() {
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
+  const [selectionMode, setSelectionMode] = useState<'fill' | 'beam'>('fill');
   const [roomError, setRoomError] = useState<string>('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
@@ -132,6 +133,7 @@ function App() {
         createdAt: Date.now(),
         creatorName: name,
         buzzer: { active: false, playerName: null, timestamp: 0 },
+        selectionMode: 'fill',
         players: { [name]: initialPlayer } // Store as object key->value
       })
       .then(() => {
@@ -233,6 +235,12 @@ function App() {
         // Sync creatorName to identify host
         if (data.creatorName) {
             setHostName(data.creatorName);
+        }
+        // Sync selection mode
+        if (data.selectionMode === 'beam' || data.selectionMode === 'fill') {
+          setSelectionMode(data.selectionMode);
+        } else {
+          setSelectionMode('fill');
         }
         // Sync bee target
         if (data.beeTarget && data.beeTarget.timestamp > lastBeeTimestampRef.current) {
@@ -358,7 +366,7 @@ function App() {
         }
         return currentGrid;
       });
-    }, 45000 + Math.random() * 30000); // Random 45-75s
+    }, 5000); // TEMPORARY FOR TESTING: 5 seconds
 
     return () => clearInterval(interval);
   }, [isCreator, roomId]);
@@ -420,6 +428,15 @@ function App() {
     update(ref(db, `rooms/${roomId}/bubbles/${id}`), {
       popped: true,
       popTime: Date.now()
+    });
+  };
+
+  const handleSelectionModeToggle = () => {
+    if (!isCreator || !roomId) return;
+    const nextMode: 'fill' | 'beam' = selectionMode === 'fill' ? 'beam' : 'fill';
+    setSelectionMode(nextMode);
+    update(ref(db, `rooms/${roomId}`), {
+      selectionMode: nextMode
     });
   };
 
@@ -521,6 +538,12 @@ function App() {
                   </div>
                 </div>
               )}
+              <button
+                onClick={handleSelectionModeToggle}
+                className="px-4 py-2 rounded-xl bg-white/15 backdrop-blur text-white font-bold shadow hover:bg-white/25 transition-colors text-sm"
+              >
+                وضع التحديد: {selectionMode === 'fill' ? 'تلوين' : 'شعاع'}
+              </button>
             </div>
           )}
         </div>
@@ -762,6 +785,7 @@ function App() {
                     grid={grid} 
                     size={HEX_SIZE} 
                     onCellClick={handleCellClick}
+                    selectionMode={selectionMode}
                   />
                   <div className="absolute inset-0 z-20 cursor-default" />
                 </div>
@@ -990,6 +1014,7 @@ function App() {
               grid={grid} 
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
+              selectionMode={selectionMode}
             />
             {activeBeeCell && (
               <Bee 
