@@ -31,6 +31,10 @@ function App() {
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
   const [showPlayerList, setShowPlayerList] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const playerListRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const playerListButtonRef = useRef<HTMLButtonElement>(null);
   const [zoneColors, setZoneColors] = useState({ orange: '#f4841f', green: '#3fa653' });
   const [gameSettings, setGameSettings] = useState({
     showBee: true,
@@ -41,9 +45,43 @@ function App() {
   const [resetTimer, setResetTimer] = useState<{ active: boolean; phase: 'initial' | 'countdown'; time: number } | null>(null);
   const resetTimerIntervalRef = useRef<number | null>(null);
   const lastBuzzerPlayerRef = useRef<string | null>(null);
+  const [showCard, setShowCard] = useState(false);
+  const allowRedRef = useRef<boolean>(true); // red allowed once per round after card ack
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Click outside to close menus
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      // Close settings if clicking outside
+      if (showSettings && 
+          settingsRef.current && 
+          !settingsRef.current.contains(target) &&
+          settingsButtonRef.current &&
+          !settingsButtonRef.current.contains(target)) {
+        setShowSettings(false);
+      }
+      
+      // Close player list if clicking outside
+      if (showPlayerList && 
+          playerListRef.current && 
+          !playerListRef.current.contains(target) &&
+          playerListButtonRef.current &&
+          !playerListButtonRef.current.contains(target)) {
+        setShowPlayerList(false);
+      }
+    };
+
+    if (showSettings || showPlayerList) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showSettings, showPlayerList]);
 
   // Initialize audio context on first user interaction
   const getAudioContext = async () => {
@@ -543,39 +581,22 @@ function App() {
     }
   };
 
-  // Handle Reset Buzzer (Host)
-  const handleResetBuzzer = () => {
-    if (!isCreator) return;
-    
-    // Reset buzzer immediately
-    if (roomId) {
-      update(ref(db, `rooms/${roomId}/buzzer`), {
-        active: false,
-        playerName: null,
-        timestamp: 0
-      });
-    }
-    // Clear timer
-    setResetTimer(null);
-    if (resetTimerIntervalRef.current) {
-      window.clearInterval(resetTimerIntervalRef.current);
-      resetTimerIntervalRef.current = null;
-    }
-  };
-
   // Auto-start timer when buzzer becomes active and track last player
   useEffect(() => {
     if (buzzer.active && buzzer.playerName) {
       // Update last buzzer player
       lastBuzzerPlayerRef.current = buzzer.playerName;
-      
+
       // Start timer immediately when buzzer is pressed (only if not already running)
       if (!resetTimer) {
+        setShowCard(false);
         setResetTimer({ active: true, phase: 'initial', time: 4 });
       }
     } else if (!buzzer.active && resetTimer) {
       // Clear timer if buzzer is reset externally
       setResetTimer(null);
+      setShowCard(true);
+      allowRedRef.current = false; // need card click to allow red again
       if (resetTimerIntervalRef.current) {
         window.clearInterval(resetTimerIntervalRef.current);
         resetTimerIntervalRef.current = null;
@@ -602,8 +623,21 @@ function App() {
           if (current.phase === 'initial') {
             // Play times up sound when 4 seconds finish
             playTimesUpSound();
-            // Don't automatically move to red phase - just stop the timer
-            // Return null to stop the timer, but keep buzzer active for the small tab
+            // If red allowed, start red; otherwise reset and show card
+            if (allowRedRef.current) {
+              // Allow only once until card pressed again
+              allowRedRef.current = false;
+              return { active: true, phase: 'countdown', time: 15 };
+            }
+            // Reset buzzer, show card
+            if (roomId) {
+              update(ref(db, `rooms/${roomId}/buzzer`), {
+                active: false,
+                playerName: null,
+                timestamp: 0
+              });
+            }
+            setShowCard(true);
             return null;
           } else {
             // Countdown finished - reset buzzer and close
@@ -614,6 +648,8 @@ function App() {
                 timestamp: 0
               });
             }
+            setShowCard(true);
+            allowRedRef.current = false;
             return null;
           }
         }
@@ -633,7 +669,9 @@ function App() {
   // Handle Start Red Phase (manually triggered)
   const handleStartRedPhase = () => {
     if (!isCreator) return;
-    setResetTimer({ active: true, phase: 'countdown', time: 15 });
+    // Card click re-enables red for next buzzer; no immediate red start
+    allowRedRef.current = true;
+    setShowCard(false);
   };
 
   // Win detection disabled - free editing enabled
@@ -651,6 +689,25 @@ function App() {
     }).join('');
   };
 
+  // Handle Reset Buzzer (Host) - restore for manual reset
+  const handleResetBuzzer = () => {
+    if (!isCreator) return;
+    if (roomId) {
+      update(ref(db, `rooms/${roomId}/buzzer`), {
+        active: false,
+        playerName: null,
+        timestamp: 0
+      });
+    }
+    setResetTimer(null);
+    setShowCard(true); // show card so host can re-enable red
+    allowRedRef.current = false; // require card click to allow red again
+    if (resetTimerIntervalRef.current) {
+      window.clearInterval(resetTimerIntervalRef.current);
+      resetTimerIntervalRef.current = null;
+    }
+  };
+
 
   if (!roomId) {
     return <Lobby onJoinRoom={handleJoinRoom} checkRoomExists={checkRoomExists} roomError={roomError} />;
@@ -666,6 +723,7 @@ function App() {
             <>
               <div className="flex gap-2">
                 <button
+                  ref={settingsButtonRef}
                   onClick={() => setShowSettings(!showSettings)}
                   className="bg-white/20 backdrop-blur hover:bg-white/30 text-white p-2 rounded-lg shadow transition-colors"
                   title="الإعدادات"
@@ -676,6 +734,7 @@ function App() {
                   </svg>
                 </button>
                 <button
+                  ref={playerListButtonRef}
                   onClick={() => setShowPlayerList(!showPlayerList)}
                   className="bg-white/20 backdrop-blur hover:bg-white/30 text-white px-4 py-2 rounded-lg shadow transition-colors font-bold"
                 >
@@ -685,7 +744,7 @@ function App() {
 
               {/* Settings Menu */}
               {showSettings && (
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50" dir="rtl">
+                <div ref={settingsRef} className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50" dir="rtl">
                   <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2 text-right">إعدادات اللعبة</h3>
                   
                   <div className="space-y-4">
@@ -764,7 +823,7 @@ function App() {
 
               {/* Player List Menu */}
               {showPlayerList && (
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50 max-h-[60vh] overflow-y-auto" dir="rtl">
+                <div ref={playerListRef} className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl text-gray-800 w-64 mt-2 animate-fade-in border border-white/50 max-h-[60vh] overflow-y-auto" dir="rtl">
                   <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2 text-right">قائمة اللاعبين</h3>
                   {players.length === 0 ? (
                     <p className="text-gray-500 text-center py-2">لا يوجد لاعبين بعد</p>
@@ -783,8 +842,8 @@ function App() {
                 </div>
               )}
 
-              {/* Reset Timer Full Screen Overlay - Shows immediately when buzzer is active and timer is running */}
-              {buzzer.active && buzzer.playerName && resetTimer && resetTimer.active && (
+              {/* Reset Timer Full Screen Overlay - Shows when timer is running */}
+              {resetTimer && resetTimer.active && lastBuzzerPlayerRef.current && (
                 <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center" dir="rtl">
                   <div 
                     className={`absolute inset-0 transition-colors duration-500 ${
@@ -794,7 +853,7 @@ function App() {
                   <div className="relative z-10 text-center text-white">
                     {/* Player Name */}
                     <div className="text-4xl md:text-5xl font-black mb-12 animate-pulse">
-                      {buzzer.playerName}
+                      {lastBuzzerPlayerRef.current}
                     </div>
                     
                     {/* Timer */}
@@ -806,42 +865,32 @@ function App() {
                     <div className="text-3xl md:text-4xl font-bold mb-8">
                       {resetTimer.phase === 'initial' ? 'جاهز...' : 'انتهى الوقت!'}
                     </div>
-                    
-                    {/* Reset Button - Show in both phases */}
-                    <button 
-                      onClick={handleResetBuzzer}
-                      className={`mt-4 px-8 py-3 rounded-full text-xl font-bold hover:bg-gray-100 active:scale-95 transition-transform shadow-2xl ${
-                        resetTimer.phase === 'initial' 
-                          ? 'bg-white text-green-600' 
-                          : 'bg-white text-red-600'
-                      }`}
-                    >
-                      استأنف الأزرار
-                    </button>
+
+            {/* Reset Button - show in red phase to end it and show the card */}
+            {resetTimer.phase === 'countdown' && (
+              <button
+                onClick={handleResetBuzzer}
+                className="mt-4 px-8 py-3 rounded-full text-xl font-bold hover:bg-gray-100 active:scale-95 transition-transform shadow-2xl bg-white text-red-600"
+              >
+                استأنف الأزرار
+              </button>
+            )}
                   </div>
                 </div>
               )}
 
-              {/* Small Tab - Shows when buzzer is active but timer is not running (after 4 seconds or if missed) */}
-              {isCreator && buzzer.active && buzzer.playerName && (!resetTimer || !resetTimer.active) && (
-                <div className="px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110 mt-2" dir="rtl">
+              {/* Small Tab - Shows when red phase is not running */}
+      {isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown') && (
+                <div className="absolute px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110" dir="rtl" style={{ top: '80px', right: '20px', zIndex: 60 }}>
                   <div className="text-center">
-                    <div className="text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName}</div>
+            <div className="text-2xl font-bold animate-pulse">{lastBuzzerPlayerRef.current || buzzer.playerName || '---'}</div>
                     <div className="text-sm mb-2">ضغط الزر!</div>
-                    <div className="flex gap-2 justify-center">
-                      <button 
-                        onClick={handleStartRedPhase}
-                        className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
-                      >
-                        استأنف جولة
-                      </button>
-                      <button 
-                        onClick={handleResetBuzzer}
-                        className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
-                      >
-                        استأنف الأزرار
-                      </button>
-                    </div>
+            <button 
+              onClick={handleStartRedPhase}
+              className="mt-2 bg-white text-green-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
+            >
+              استأنف جولة
+            </button>
                   </div>
                 </div>
               )}
@@ -854,11 +903,6 @@ function App() {
           <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white">
             غرفة: {toArabicNumerals(roomId)}
           </div>
-          {!isCreator && (
-            <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-lg shadow font-bold text-white text-sm">
-              اللاعب: {playerName}
-            </div>
-          )}
         </div>
       </div>
 
