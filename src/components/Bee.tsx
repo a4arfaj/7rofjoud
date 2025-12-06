@@ -12,7 +12,7 @@ interface BeeProps {
 
 const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize, grid }) => {
   const posRef = useRef({ x: -200, y: 200 }); // Start off-screen left
-  const stateRef = useRef<'flying-in' | 'hovering' | 'leaving'>('flying-in');
+  const stateRef = useRef<'flying-in' | 'landed' | 'leaving'>('flying-in');
   const rotationRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const requestRef = useRef<number>();
@@ -67,8 +67,9 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 10) {
-        stateRef.current = 'hovering';
+        stateRef.current = 'landed';
         posRef.current = { x: targetX, y: targetY };
+        rotationRef.current = 0; // Face forward when landed
         startTimeRef.current = now;
       } else {
         const speed = 1.2; // Slower movement
@@ -79,23 +80,19 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         };
         rotationRef.current = angle * (180 / Math.PI) + 90;
       }
-    } else if (state === 'hovering') {
-      // Wait 1 second after landing before removing color
+    } else if (state === 'landed') {
+      // After 1 second, remove color
       if (elapsed >= 1000 && !hasCalledReachTarget.current) {
         hasCalledReachTarget.current = true;
         onReachTarget();
       }
       
-      if (elapsed > 3000) {
+      // After 2 seconds total, fly away
+      if (elapsed >= 2000) {
         stateRef.current = 'leaving';
         startTimeRef.current = now;
-      } else {
-        // Bobbing motion (wings stopped - no movement)
-        posRef.current = {
-          x: targetX + Math.sin(elapsed * 0.005) * 8,
-          y: targetY + Math.cos(elapsed * 0.005) * 8
-        };
       }
+      // Stay still when landed (no bobbing)
     } else if (state === 'leaving') {
       // Fly away to top-right (in SVG coordinates)
       const exitX = viewBoxMinX + viewBoxWidth + 200;
@@ -138,10 +135,9 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   const percentX = ((posRef.current.x - viewBoxMinX) / viewBoxWidth) * 100;
   const percentY = ((posRef.current.y - viewBoxMinY) / viewBoxHeight) * 100;
   
-  // Wings only animate when flying (not when hovering)
-  const isHovering = stateRef.current === 'hovering';
-  const wingLeftClass = isHovering ? '' : 'wing-left';
-  const wingRightClass = isHovering ? '' : 'wing-right';
+  // Wings only animate when flying (not when landed)
+  const isFlying = stateRef.current === 'flying-in' || stateRef.current === 'leaving';
+  const wingClass = isFlying ? 'wing-animated' : '';
 
   return (
     <div
@@ -166,14 +162,14 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
               0%, 100% { transform: rotate(30deg); }
               50% { transform: rotate(10deg); }
             }
-            .wing-left { transform-origin: 30px 40px; animation: flutter-left 0.08s infinite; }
-            .wing-right { transform-origin: 70px 40px; animation: flutter-right 0.08s infinite; }
+            .wing-animated.wing-left { transform-origin: 30px 40px; animation: flutter-left 0.08s infinite; }
+            .wing-animated.wing-right { transform-origin: 70px 40px; animation: flutter-right 0.08s infinite; }
           `}
         </style>
         <g>
-          {/* Wings - only animate when not hovering */}
-          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={wingLeftClass} style={isHovering ? { transform: 'rotate(-20deg)', transformOrigin: '30px 40px' } : undefined} />
-          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={wingRightClass} style={isHovering ? { transform: 'rotate(20deg)', transformOrigin: '70px 40px' } : undefined} />
+          {/* Wings */}
+          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={`wing-left ${wingClass}`} />
+          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className={`wing-right ${wingClass}`} />
           
           {/* Body */}
           <ellipse cx="50" cy="50" rx="22" ry="32" fill="#FFD700" stroke="black" strokeWidth="2" />
