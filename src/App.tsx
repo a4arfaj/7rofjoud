@@ -1,6 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import HexGrid from './components/HexGrid';
 import Lobby from './components/Lobby';
+import Bubbles from './components/Bubbles';
+import Bee from './components/Bee';
 import {
   generateHexGrid,
 } from './utils/hex';
@@ -8,20 +10,8 @@ import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
 import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET } from './constants';
 import { db } from './firebase';
-import { ref, set, onValue, update, get, onDisconnect, runTransaction } from 'firebase/database';
-
-// Add buzzer interface
-interface BuzzerState {
-  active: boolean;
-  playerName: string | null;
-  timestamp: number;
-}
-
-// Add player interface
-interface Player {
-  name: string;
-  team: 'green' | 'orange';
-}
+import { ref, set, onValue, update, get, onDisconnect, runTransaction, push, remove } from 'firebase/database';
+import type { BubbleData, Player, BuzzerState } from './types';
 
 function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -31,8 +21,11 @@ function App() {
   const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
+  const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [roomError, setRoomError] = useState<string>('');
   const [hostName, setHostName] = useState<string | null>(null);
+  const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
+  const lastBeeTimestampRef = useRef<number>(0);
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -99,6 +92,17 @@ function App() {
       });
     } catch (error) {
       console.error('Error playing win sound:', error);
+    }
+  };
+
+  const checkRoomExists = async (id: string): Promise<boolean> => {
+    try {
+      const roomRef = ref(db, `rooms/${id}`);
+      const snapshot = await get(roomRef);
+      return snapshot.exists();
+    } catch (error) {
+      console.error('Error checking room existence:', error);
+      return false;
     }
   };
 
@@ -230,6 +234,26 @@ function App() {
         if (data.creatorName) {
             setHostName(data.creatorName);
         }
+        // Sync bee target
+        if (data.beeTarget && data.beeTarget.timestamp > lastBeeTimestampRef.current) {
+          lastBeeTimestampRef.current = data.beeTarget.timestamp;
+          // Use functional update to ensure we have the latest grid
+          // Actually we just set activeBeeCell, grid is updated via data.grid sync
+          const targetCell = (data.grid || []).find((c: any) => c.id === data.beeTarget.id);
+          if (targetCell) {
+            setActiveBeeCell(targetCell);
+          }
+        }
+        // Sync bubbles
+        if (data.bubbles) {
+          const bubbleList = Object.entries(data.bubbles).map(([key, value]: [string, any]) => ({
+            ...value,
+            id: key
+          }));
+          setBubbles(bubbleList);
+        } else {
+          setBubbles([]);
+        }
       } else {
         console.warn("No data in Firebase for room:", roomId);
       }
@@ -318,6 +342,87 @@ function App() {
     }
   };
 
+  // Host Bee Logic
+  useEffect(() => {
+    if (!isCreator || !roomId) return;
+    
+    const interval = setInterval(() => {
+      setGrid(currentGrid => {
+        // Find colored cells
+        const coloredCells = currentGrid.filter(c => c.state === 2 || c.state === 3);
+        if (coloredCells.length > 0) {
+          const randomCell = coloredCells[Math.floor(Math.random() * coloredCells.length)];
+          update(ref(db, `rooms/${roomId}`), {
+            beeTarget: { id: randomCell.id, timestamp: Date.now() }
+          });
+        }
+        return currentGrid;
+      });
+    }, 45000 + Math.random() * 30000); // Random 45-75s
+
+    return () => clearInterval(interval);
+  }, [isCreator, roomId]);
+
+  const handleBeeReachTarget = () => {
+    if (isCreator && activeBeeCell && roomId) {
+      const index = grid.findIndex(c => c.id === activeBeeCell.id);
+      if (index !== -1) {
+         update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+      }
+    }
+  };
+
+  const handleBeeFinish = () => {
+    setActiveBeeCell(null);
+  };
+
+  // Host Bubble Spawn Logic
+  useEffect(() => {
+    if (!isCreator || !roomId || players.length === 0) return;
+
+    const spawnInterval = setInterval(() => {
+      if (bubbles.length >= 8) return; // Limit max bubbles
+
+      const randomPlayer = players[Math.floor(Math.random() * players.length)];
+      const size = 60 + Math.random() * 40;
+      
+      const newBubble: Omit<BubbleData, 'id'> = {
+        name: randomPlayer.name,
+        x: 10 + Math.random() * 80,
+        size,
+        speed: 0.02 + Math.random() * 0.03,
+        wobbleOffset: Math.random() * Math.PI * 2,
+        spawnTime: Date.now(),
+        popped: false
+      };
+
+      push(ref(db, `rooms/${roomId}/bubbles`), newBubble);
+    }, 35000); // Spawn every 35 seconds
+
+    // Cleanup old bubbles (older than 60s)
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      bubbles.forEach(b => {
+        if ((b.popped && b.popTime && now - b.popTime > 5000) || (now - b.spawnTime > 60000)) {
+           remove(ref(db, `rooms/${roomId}/bubbles/${b.id}`));
+        }
+      });
+    }, 10000);
+
+    return () => {
+      clearInterval(spawnInterval);
+      clearInterval(cleanupInterval);
+    };
+  }, [isCreator, roomId, players, bubbles]);
+
+  const handleBubblePop = (id: string) => {
+    if (!roomId) return;
+    update(ref(db, `rooms/${roomId}/bubbles/${id}`), {
+      popped: true,
+      popTime: Date.now()
+    });
+  };
+
   // Handle Reset Buzzer (Host)
   const handleResetBuzzer = () => {
     if (!isCreator) return;
@@ -390,7 +495,7 @@ function App() {
   };
 
   if (!roomId) {
-    return <Lobby onJoinRoom={handleJoinRoom} roomError={roomError} />;
+    return <Lobby onJoinRoom={handleJoinRoom} checkRoomExists={checkRoomExists} roomError={roomError} />;
   }
 
   return (
@@ -411,7 +516,7 @@ function App() {
                       onClick={handleResetBuzzer}
                       className="mt-2 bg-white text-green-600 px-4 py-1 rounded-full text-sm font-bold hover:bg-gray-100 active:scale-95 transition-transform"
                     >
-                      إعادة تعيين الزر
+                      استانف الأزرار
                     </button>
                   </div>
                 </div>
@@ -437,6 +542,9 @@ function App() {
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
            {/* Top Frame: Game Board & Zones */}
            <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
+             {/* Bubbles Overlay */}
+             <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
+             
               {/* Frame borders - positioned closer to grid */}
               <div className="absolute inset-0 z-40 pointer-events-none">
                 {/* Left border */}
@@ -465,7 +573,7 @@ function App() {
               <div 
                 className="absolute z-[2] pointer-events-none"
                 style={{
-                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+                  left: '50%',
                   top: '50%',
                   transform: 'translate(-50%, -50%)',
                   width: 'min(90vw, 60vh)',
@@ -677,7 +785,7 @@ function App() {
               >
                 <span className="text-white font-black text-2xl drop-shadow-md">
                   {buzzer.active 
-                    ? (buzzer.playerName === playerName ? 'أنت!' : buzzer.playerName)
+                    ? (buzzer.playerName === playerName ? '!أنت' : buzzer.playerName)
                     : '!اضغط'}
                 </span>
               </button>
@@ -686,6 +794,9 @@ function App() {
       ) : (
       /* Host UI: Full Screen Game Board */
       <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]">
+        {/* Bubbles Overlay */}
+        <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
+
         {/* Base purple background */}
         <div className="absolute inset-0 bg-[#5e35b1] z-[1]" />
         
@@ -791,7 +902,7 @@ function App() {
           
           {/* Orange zones wrapper - positioned relative to grid, extends to viewport edges, ON TOP of green (z-index 5) */}
           <div className="absolute z-[5]" style={{ 
-            left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+            left: '50%',
             top: '50%',
             transform: 'translate(-50%, -50%)',
             width: 'min(95vw, 95vh)',
@@ -880,6 +991,15 @@ function App() {
               size={HEX_SIZE} 
               onCellClick={handleCellClick}
             />
+            {activeBeeCell && (
+              <Bee 
+                targetCell={activeBeeCell} 
+                startPos={{ x: -100, y: 100 }} // Start off-left
+                onReachTarget={handleBeeReachTarget} 
+                onFinish={handleBeeFinish} 
+                hexSize={HEX_SIZE}
+              />
+            )}
           </div>
         </div>
       </div>
