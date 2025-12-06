@@ -1199,7 +1199,7 @@ function App() {
         {/* Bubbles Overlay */}
         <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
         
-        {/* Game container that scales uniformly */}
+        {/* Game container that scales uniformly - with margin to avoid card overlap */}
         <div 
           className="relative z-10"
           style={{
@@ -1208,7 +1208,9 @@ function App() {
             maxWidth: '900px',
             maxHeight: '900px',
             aspectRatio: '1 / 1',
-            overflow: 'visible'
+            overflow: 'visible',
+            marginTop: '140px', // Add top margin to avoid card overlap (card is at top: 80px + card height)
+            marginRight: '200px' // Add right margin to avoid card overlap (card is at right: 20px + card width)
           }}
         >
           {/* Real frame around zones - extends to cover outer edges */}
