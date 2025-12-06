@@ -7,9 +7,10 @@ type HexCellProps = {
   layoutSize?: number;
   onClick: (id: string) => void;
   selectionMode?: 'fill' | 'beam';
+  renderBeam?: boolean;
 };
 
-function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill' }: HexCellProps) {
+function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', renderBeam = true }: HexCellProps) {
   const effectiveLayoutSize = layoutSize || size;
   const { x, y } = hexToPixel(cell, effectiveLayoutSize);
   const corners = getHexCorners({ x, y }, size);
@@ -47,16 +48,6 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill' }: He
         strokeWidth={5}
         className={isSelected && selectionMode === 'fill' ? 'glowing-yellow' : 'transition-[fill] duration-200'}
       />
-      {isSelected && selectionMode === 'beam' && (
-        <polygon
-          points={points}
-          fill="none"
-          stroke="#ffd700"
-          strokeWidth={7}
-          strokeLinecap="round"
-          className="selection-beam"
-        />
-      )}
       <text
         x={x}
         y={y}
@@ -77,6 +68,18 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill' }: He
       >
         {cell.letter}
       </text>
+      {/* Beam rendered last to ensure it's above everything in this cell */}
+      {isSelected && selectionMode === 'beam' && renderBeam && (
+        <polygon
+          points={points}
+          fill="none"
+          stroke="#ffd700"
+          strokeWidth={6}
+          strokeLinecap="round"
+          className="selection-beam"
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
     </g>
   );
 }

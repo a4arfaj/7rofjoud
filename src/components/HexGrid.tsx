@@ -1,7 +1,7 @@
 import HexCell from './HexCell';
 import { HEX_SPACING } from '../constants';
 import type { HexCellData } from '../utils/hex';
-import { hexToPixel } from '../utils/hex';
+import { hexToPixel, getHexCorners } from '../utils/hex';
 
 type HexGridProps = {
   grid: HexCellData[];
@@ -34,6 +34,7 @@ function HexGrid({ grid, size, onCellClick, selectionMode = 'fill' }: HexGridPro
       preserveAspectRatio="xMidYMid meet"
     >
       <g id="hex-grid">
+        {/* Render all cells first (without beams) */}
         {grid.map((cell) => (
           <HexCell
             key={cell.id}
@@ -42,9 +43,34 @@ function HexGrid({ grid, size, onCellClick, selectionMode = 'fill' }: HexGridPro
             layoutSize={layoutSize}
             onClick={onCellClick}
             selectionMode={selectionMode}
+            renderBeam={false}
           />
         ))}
       </g>
+      {/* Render all beams in a separate layer on top */}
+      {selectionMode === 'beam' && (
+        <g id="beam-layer">
+          {grid
+            .filter(cell => cell.state === 1)
+            .map((cell) => {
+              const { x, y } = hexToPixel(cell, layoutSize);
+              const corners = getHexCorners({ x, y }, size);
+              const points = corners.map((p) => `${p.x},${p.y}`).join(' ');
+              return (
+                <polygon
+                  key={`beam-${cell.id}`}
+                  points={points}
+                  fill="none"
+                  stroke="#ffd700"
+                  strokeWidth={6}
+                  strokeLinecap="round"
+                  className="selection-beam"
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            })}
+        </g>
+      )}
     </svg>
   );
 }

@@ -59,12 +59,12 @@ body {
     stroke-dashoffset: 0;
   }
   100% {
-    stroke-dashoffset: -200;
+    stroke-dashoffset: -75; /* Match the total pattern length (50 + 25) */
   }
 }
 
 .selection-beam {
-  stroke-dasharray: 50 25;
+  stroke-dasharray: 50 25; /* 50 units dash, 25 units gap = 75 total */
   animation: selection-beam-spin 1.2s linear infinite;
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4)); /* Reduced shine */
 }
