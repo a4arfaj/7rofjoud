@@ -79,7 +79,7 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
             <div className="absolute top-[15%] left-[15%] w-[20%] h-[20%] rounded-full bg-white opacity-60 filter blur-[1px]" />
           </div>
 
-          {/* Text - separate element to handle "pop" visualization correctly (doesn't scale down) */}
+          {/* Content - Text or Bee - separate element to handle "pop" visualization correctly (doesn't scale down) */}
           {/* We move it with the bubble */}
           <div
              className="absolute flex items-center justify-center pointer-events-none"
@@ -93,12 +93,82 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
               transition: 'opacity 0.1s'
              }}
           >
-             <span 
-              className="text-black font-bold text-shadow-md truncate px-2 select-none"
-              style={{ fontSize: `${b.size * 0.25}px` }}
-            >
-              {b.name}
-            </span>
+            {b.hasBee ? (
+              /* Bee SVG */
+              <svg 
+                viewBox="0 0 100 100" 
+                width={`${b.size * 0.6}px`} 
+                height={`${b.size * 0.6}px`}
+                className="wing-animated"
+              >
+                <style>
+                  {`
+                    @keyframes flutter-left {
+                      0%, 100% { transform: rotate(-30deg); }
+                      50% { transform: rotate(-10deg); }
+                    }
+                    @keyframes flutter-right {
+                      0%, 100% { transform: rotate(30deg); }
+                      50% { transform: rotate(10deg); }
+                    }
+                    .wing-animated .wing-left { transform-origin: 30px 40px; animation: flutter-left 0.08s infinite; }
+                    .wing-animated .wing-right { transform-origin: 70px 40px; animation: flutter-right 0.08s infinite; }
+                  `}
+                </style>
+                <g>
+                  {/* Wings */}
+                  <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-left" />
+                  <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-right" />
+                  
+                  {/* Body */}
+                  <ellipse cx="50" cy="50" rx="22" ry="32" fill="#FFD700" stroke="black" strokeWidth="2" />
+                  
+                  {/* Stripes */}
+                  <path d="M32 40 Q50 32 68 40" stroke="black" strokeWidth="5" fill="none" />
+                  <path d="M30 52 Q50 44 70 52" stroke="black" strokeWidth="5" fill="none" />
+                  <path d="M35 64 Q50 56 65 64" stroke="black" strokeWidth="5" fill="none" />
+                  
+                  {/* Head */}
+                  <circle cx="50" cy="22" r="12" fill="#FFD700" stroke="black" strokeWidth="2" />
+                  
+                  {/* Eyes */}
+                  <circle cx="45" cy="20" r="4" fill="black" />
+                  <circle cx="55" cy="20" r="4" fill="black" />
+                  <circle cx="44" cy="18" r="1.5" fill="white" />
+                  <circle cx="54" cy="18" r="1.5" fill="white" />
+                  
+                  {/* Antennae */}
+                  <path d="M45 12 Q42 5 38 2" stroke="black" strokeWidth="2" fill="none" />
+                  <path d="M55 12 Q58 5 62 2" stroke="black" strokeWidth="2" fill="none" />
+                  <circle cx="38" cy="2" r="2" fill="black" />
+                  <circle cx="62" cy="2" r="2" fill="black" />
+                  
+                  {/* Stinger */}
+                  <path d="M50 82 L47 92 L53 92 Z" fill="#333" />
+                </g>
+              </svg>
+            ) : (
+              /* Text with white color and border */
+              <span 
+                className="font-bold truncate px-2 select-none"
+                style={{ 
+                  fontSize: `${b.size * 0.25}px`,
+                  fontFamily: "'Cairo', 'Amiri', 'Noto Sans Arabic', serif",
+                  color: 'white',
+                  textShadow: `
+                    -1px -1px 0 #000,
+                    1px -1px 0 #000,
+                    -1px 1px 0 #000,
+                    1px 1px 0 #000,
+                    0 0 3px #000
+                  `,
+                  WebkitTextStroke: '1px black',
+                  paintOrder: 'stroke fill'
+                }}
+              >
+                {b.name}
+              </span>
+            )}
           </div>
         </React.Fragment>
       ))}

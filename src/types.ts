@@ -8,6 +8,7 @@ export interface BubbleData {
   spawnTime: number;
   popped?: boolean;
   popTime?: number;
+  hasBee?: boolean; // If true, show bee instead of text
 }
 
 export interface Player {

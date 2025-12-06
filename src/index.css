@@ -16,11 +16,11 @@ body {
 /* Yellow state animation - transitions from start color to end color */
 @keyframes yellow-fade-in {
   0% {
-    fill: var(--selection-start-color, #fff9e6); /* Start color from constants */
+    fill: var(--selection-start-color, #ffffff); /* Start color from constants */
     opacity: 0.5;
   }
   100% {
-    fill: var(--selection-end-color, #b6a705); /* End color from constants */
+    fill: var(--selection-end-color, #ffea00); /* End color from constants */
     opacity: 1;
   }
 }
@@ -50,12 +50,12 @@ body {
   /* Animation: fade-in speed (1.5s) + glow-pulse speed (2.5s) */
   /* Change 1.5s to adjust initial color fade speed */
   /* Change 2.5s to adjust ongoing pulse speed */
-  animation: yellow-fade-in 1.5s ease-out forwards, glow-pulse 2.5s ease-in-out 1.5s infinite;
+  animation: yellow-fade-in 1.5s ease-out forwards, glow-pulse 1.5s ease-in-out 1.5s infinite;
 }
 
 .glowing-yellow-glow {
   /* Change 2.5s to adjust background glow pulse speed */
-  animation: glow-pulse-background 2.5s ease-in-out infinite;
+  animation: glow-pulse-background 1.5s ease-in-out infinite;
 }
 
 @keyframes selection-beam-spin {

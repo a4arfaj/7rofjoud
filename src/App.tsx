@@ -415,7 +415,8 @@ function App() {
         speed: 0.02 + Math.random() * 0.03,
         wobbleOffset: Math.random() * Math.PI * 2,
         spawnTime: Date.now(),
-        popped: false
+        popped: false,
+        hasBee: Math.random() < 0.25 // 25% chance to have a bee
       };
 
       push(ref(db, `rooms/${roomId}/bubbles`), newBubble);
