@@ -1033,7 +1033,6 @@ function App() {
             {activeBeeCell && (
               <Bee 
                 targetCell={activeBeeCell} 
-                startPos={{ x: -100, y: 100 }} // Start off-left
                 onReachTarget={handleBeeReachTarget} 
                 onFinish={handleBeeFinish} 
                 hexSize={HEX_SIZE}

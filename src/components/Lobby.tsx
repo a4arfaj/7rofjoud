@@ -56,7 +56,7 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
     if (pendingAction?.type === 'create') {
       // Generate a random 4-digit room ID
       const newRoomId = Math.floor(1000 + Math.random() * 9000).toString();
-      onJoinRoom(newRoomId, true, playerName);
+      onJoinRoom(newRoomId, true, playerName); 
     } else if (pendingAction?.type === 'join' && pendingAction.roomId) {
       onJoinRoom(pendingAction.roomId, false, playerName);
     }
@@ -77,43 +77,43 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
           {!showNameInput ? (
             // Initial View: Create or Join Room
             <>
-              {/* Create Room Button */}
-              <button
+          {/* Create Room Button */}
+          <button
                 onClick={handleCreateClick}
-                className="w-full py-4 bg-[#f4841f] hover:bg-[#d66e0d] text-white text-2xl font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg"
-              >
-                أنشئ غرفة
-              </button>
+            className="w-full py-4 bg-[#f4841f] hover:bg-[#d66e0d] text-white text-2xl font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg"
+          >
+            أنشئ غرفة
+          </button>
 
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-white/30"></div>
-                <span className="flex-shrink-0 mx-4 text-white/80">أو</span>
-                <div className="flex-grow border-t border-white/30"></div>
-              </div>
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-white/30"></div>
+            <span className="flex-shrink-0 mx-4 text-white/80">أو</span>
+            <div className="flex-grow border-t border-white/30"></div>
+          </div>
 
-              {/* Enter Room Section */}
-              <div className="space-y-3">
-                <input
-                  type="tel"
-                  inputMode="numeric"
+          {/* Enter Room Section */}
+          <div className="space-y-3">
+            <input
+              type="tel"
+              inputMode="numeric"
                   // Allow 0-9 and Arabic numerals
-                  value={roomId}
-                  onChange={(e) => {
+              value={roomId}
+              onChange={(e) => {
                     // Convert Arabic numerals to English before filtering
                     const englishVal = toEnglishDigits(e.target.value);
                     const value = englishVal.replace(/[^0-9]/g, '');
-                    setRoomId(value);
+                setRoomId(value);
                     setError('');
-                  }}
-                  placeholder="رقم الغرفة"
-                  className="w-full px-4 py-3 bg-white/90 text-gray-800 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-[#f4841f] text-center placeholder-gray-500"
-                />
-                <button
+              }}
+              placeholder="رقم الغرفة"
+              className="w-full px-4 py-3 bg-white/90 text-gray-800 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-[#f4841f] text-center placeholder-gray-500"
+            />
+            <button
                   onClick={handleJoinClick}
-                  className="w-full py-3 bg-[#2255cc] hover:bg-[#1a44a5] text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg"
-                >
-                  ادخل غرفة
-                </button>
+              className="w-full py-3 bg-[#2255cc] hover:bg-[#1a44a5] text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg"
+            >
+              ادخل غرفة
+            </button>
               </div>
             </>
           ) : (
@@ -161,11 +161,11 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
             </div>
           )}
 
-          {(error || roomError) && (
+            {(error || roomError) && (
             <p className="text-red-200 text-center font-bold mt-2 bg-red-500/20 py-2 rounded-lg animate-pulse">
-              {error || roomError}
-            </p>
-          )}
+                {error || roomError}
+              </p>
+            )}
         </div>
       </div>
     </div>

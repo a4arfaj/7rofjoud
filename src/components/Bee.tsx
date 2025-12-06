@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useReducer } from 'react';
 import { hexToPixel } from '../utils/hex';
 import type { HexCellData } from '../utils/hex';
 
@@ -15,9 +15,9 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   const stateRef = useRef<'flying-in' | 'landed' | 'leaving'>('flying-in');
   const rotationRef = useRef(0);
   const startTimeRef = useRef(Date.now());
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const hasCalledReachTarget = useRef(false);
-  const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Calculate viewBox bounds for coordinate conversion
   const layoutSize = hexSize * 1.0;

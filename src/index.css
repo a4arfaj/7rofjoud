@@ -20,7 +20,7 @@ body {
     opacity: 0.5;
   }
   100% {
-    fill: var(--selection-end-color, #ffd700); /* End color from constants */
+    fill: var(--selection-end-color, #fcea1a); /* End color from constants */
     opacity: 1;
   }
 }
@@ -47,7 +47,7 @@ body {
 }
 
 .glowing-yellow {
-  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse var(--selection-animation-speed, 1.5s) ease-in-out 0.3s infinite;
+  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse var(--selection-animation-speed, 0.5s) ease-in-out 0.3s infinite;
 }
 
 .glowing-yellow-glow {
