@@ -790,23 +790,38 @@ function App() {
                   overflow: 'visible'
                 }}
               >
-                {/* Real frame around zones for guest view */}
-                <div 
-                  className="absolute z-[6] pointer-events-none"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 'min(90vw, 60vh)',
-                    height: 'min(90vw, 60vh)',
-                    maxWidth: '800px',
-                    maxHeight: '800px',
-                    aspectRatio: '1 / 1',
-                    border: '8px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '20px',
-                    boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
-                  }}
-                />
+                {/* Real frame around zones for guest view - extends to cover outer edges */}
+                {(() => {
+                  // Calculate the maximum extension of zones beyond the container
+                  // Green zones extend up/down by: GREEN_INNER_EDGE_WIDTH + abs(GREEN_OUTER_EDGE_OFFSET) - GREEN_INNER_EDGE_POSITION
+                  const greenTopExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * 0.01;
+                  const greenBottomExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * 0.01;
+                  // Orange zones extend left/right by: ORANGE_INNER_EDGE_WIDTH + ORANGE_OUTER_EDGE_OFFSET
+                  const orangeLeftExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * 0.01;
+                  const orangeRightExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * 0.01;
+                  
+                  // Base container size
+                  const baseSize = 'min(90vw, 60vh)';
+                  const baseMaxSize = '800px';
+                  
+                  return (
+                    <div 
+                      className="absolute z-[6] pointer-events-none"
+                      style={{
+                        left: `calc(50% - ${Math.max(orangeLeftExtension, orangeRightExtension) * 100}%)`,
+                        top: `calc(50% - ${Math.max(greenTopExtension, greenBottomExtension) * 100}%)`,
+                        transform: 'translate(-50%, -50%)',
+                        width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}%)`,
+                        height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}%)`,
+                        maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 800)}px)`,
+                        maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 800)}px)`,
+                        border: '8px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: '20px',
+                        boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+                      }}
+                    />
+                  );
+                })()}
                 {/* Hex grid on top */}
                 <div className="absolute inset-0 flex items-center justify-center" style={boardGlow}>
                   <HexGrid 
@@ -850,7 +865,7 @@ function App() {
                     ? (buzzer.playerName === playerName ? '!أنت' : buzzer.playerName)
                     : '!اضغط'}
                 </span>
-              </button>
+        </button>
            </div>
         </div>
       ) : (
@@ -871,23 +886,38 @@ function App() {
             overflow: 'visible'
           }}
         >
-          {/* Real frame around zones */}
-          <div 
-            className="absolute z-[6] pointer-events-none"
-            style={{
-              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(95vw, 95vh)',
-              height: 'min(95vw, 95vh)',
-              maxWidth: '900px',
-              maxHeight: '900px',
-              aspectRatio: '1 / 1',
-              border: '8px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '20px',
-              boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
-            }}
-          />
+          {/* Real frame around zones - extends to cover outer edges */}
+          {(() => {
+            // Calculate the maximum extension of zones beyond the container
+            // Green zones extend up/down by: GREEN_INNER_EDGE_WIDTH + abs(GREEN_OUTER_EDGE_OFFSET) - GREEN_INNER_EDGE_POSITION
+            const greenTopExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * 0.01;
+            const greenBottomExtension = (GREEN_INNER_EDGE_WIDTH + Math.abs(GREEN_OUTER_EDGE_OFFSET)) * 0.01;
+            // Orange zones extend left/right by: ORANGE_INNER_EDGE_WIDTH + ORANGE_OUTER_EDGE_OFFSET
+            const orangeLeftExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * 0.01;
+            const orangeRightExtension = (ORANGE_INNER_EDGE_WIDTH + Math.abs(ORANGE_OUTER_EDGE_OFFSET)) * 0.01;
+            
+            // Base container size
+            const baseSize = 'min(95vw, 95vh)';
+            const baseMaxSize = '900px';
+            
+            return (
+              <div 
+                className="absolute z-[6] pointer-events-none"
+                style={{
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% - ${Math.max(orangeLeftExtension, orangeRightExtension) * 100}%)`,
+                  top: `calc(50% - ${Math.max(greenTopExtension, greenBottomExtension) * 100}%)`,
+                  transform: 'translate(-50%, -50%)',
+                  width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}%)`,
+                  height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}%)`,
+                  maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 900)}px)`,
+                  maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 900)}px)`,
+                  border: '8px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '20px',
+                  boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+                }}
+              />
+            );
+          })()}
 
           {/* Green zones - positioned relative to grid container */}
           <div 
