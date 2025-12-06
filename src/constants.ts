@@ -61,15 +61,14 @@ export const BEAM_ANIMATION_SPEED = 1.2; // Speed of beam mode animation in seco
 // Lower values = faster spin, Higher values = slower spin
 
 // Frame Controls
-export const FRAME_BORDER_WIDTH = 8; // Width of frame border in pixels
+export const FRAME_BORDER_WIDTH = 8; // Width of the frame border in pixels
 // Controls the thickness of the frame border around the zones
-export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Color of frame border
-// Controls the color and opacity of the frame border
-// Format: rgba(red, green, blue, opacity) where opacity is 0-1
-export const FRAME_BORDER_RADIUS = 20; // Border radius of frame in pixels
-// Controls how rounded the frame corners are
-// Higher values = more rounded corners
-export const FRAME_PADDING_EXTRA = 0; // Extra padding to add around zones in percentage
-// Additional padding to add around the outer edges of zones
-// 0 = frame fits exactly to zone edges, positive = adds space outside zones
+export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Color of the frame border
+// Controls the color and opacity of the frame border (RGBA format)
+export const FRAME_BORDER_RADIUS = 20; // Border radius of the frame corners in pixels
+// Controls how rounded the frame corners are (0 = square, higher = more rounded)
+export const FRAME_INNER_SHADOW = 'inset 0 0 40px rgba(255, 255, 255, 0.1)'; // Inner shadow of the frame
+// Controls the inner glow effect of the frame
+export const FRAME_OUTER_SHADOW = '0 0 60px rgba(0, 0, 0, 0.5)'; // Outer shadow of the frame
+// Controls the outer shadow/glow effect of the frame
 
