@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { hexToPixel, getHexCorners } from '../utils/hex';
+import { hexToPixel } from '../utils/hex';
 import type { HexCellData } from '../utils/hex';
 
 interface BeeProps {

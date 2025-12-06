@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
 import { getHexCorners, hexToPixel } from '../utils/hex';
 import type { HexCellData } from '../utils/hex';
+import { SELECTION_START_COLOR, SELECTION_END_COLOR, SELECTION_ANIMATION_SPEED, BEAM_COLOR, BEAM_ANIMATION_SPEED } from '../constants';
 
 type HexCellProps = {
   cell: HexCellData;
@@ -20,7 +22,7 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
 
   let fillColor = '#ffffff';
   if (isSelected && selectionMode === 'fill') {
-    fillColor = '#fff9e6'; // Start with white-ish yellow for animation
+    fillColor = SELECTION_START_COLOR; // Start color from constants
   } else if (cell.state === 2) {
     fillColor = '#f9a826'; // Orange
   } else if (cell.state === 3) {
@@ -34,10 +36,13 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
           {/* Glow effect layer */}
           <polygon
             points={points}
-            fill="#ffd700"
+            fill={SELECTION_END_COLOR}
             stroke="none"
             className="glowing-yellow-glow"
             opacity="0.6"
+            style={{
+              '--selection-animation-speed': `${SELECTION_ANIMATION_SPEED}s`
+            } as CSSProperties}
           />
         </>
       )}
@@ -47,6 +52,11 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
         stroke="#000000"
         strokeWidth={5}
         className={isSelected && selectionMode === 'fill' ? 'glowing-yellow' : 'transition-[fill] duration-200'}
+        style={isSelected && selectionMode === 'fill' ? {
+          '--selection-start-color': SELECTION_START_COLOR,
+          '--selection-end-color': SELECTION_END_COLOR,
+          '--selection-animation-speed': `${SELECTION_ANIMATION_SPEED}s`
+        } as React.CSSProperties : undefined}
       />
       <text
         x={x}
@@ -73,11 +83,14 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
         <polygon
           points={points}
           fill="none"
-          stroke="#ffd700"
+          stroke={BEAM_COLOR}
           strokeWidth={6}
           strokeLinecap="round"
           className="selection-beam"
-          style={{ pointerEvents: 'none' }}
+          style={{ 
+            pointerEvents: 'none',
+            '--beam-animation-speed': `${BEAM_ANIMATION_SPEED}s`
+          } as React.CSSProperties}
         />
       )}
     </g>

@@ -45,3 +45,18 @@ export const GREEN_OUTER_EDGE_OFFSET = -4.000000; // Vertical offset of green zo
 // Controls how far green zones extend outward from the grid edges
 // This replaces the old 2.5vh value, now as percentage of grid container
 
+// Selection Mode Coloring Controls
+export const SELECTION_START_COLOR = '#fff9e6'; // Start color for fill mode selection animation
+// Very light yellow/white color that the selection animation starts from
+export const SELECTION_END_COLOR = '#ffd700'; // End color for fill mode selection animation
+// Full yellow/gold color that the selection animation transitions to
+export const SELECTION_ANIMATION_SPEED = 1.5; // Speed of fill mode selection animation in seconds
+// Controls how fast the color transition happens in fill mode
+// Lower values = faster animation, Higher values = slower animation
+
+export const BEAM_COLOR = '#ffd700'; // Color for beam mode selection border
+// Color of the animated border in beam mode
+export const BEAM_ANIMATION_SPEED = 1.2; // Speed of beam mode animation in seconds
+// Controls how fast the beam spins around the cell border
+// Lower values = faster spin, Higher values = slower spin
+
