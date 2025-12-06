@@ -259,7 +259,8 @@ function App() {
         if (data.bubbles) {
           const bubbleList = Object.entries(data.bubbles).map(([key, value]: [string, any]) => ({
             ...value,
-            id: key
+            id: key,
+            hasBee: value.hasBee || false // Ensure hasBee is always defined
           }));
           setBubbles(bubbleList);
         } else {
@@ -403,32 +404,47 @@ function App() {
     if (!isCreator || !roomId || players.length === 0) return;
 
     const spawnInterval = setInterval(() => {
-      if (bubbles.length >= 8) return; // Limit max bubbles
+      // Read current bubbles from Firebase to check limit
+      get(ref(db, `rooms/${roomId}/bubbles`)).then((snapshot) => {
+        const currentBubbles = snapshot.val();
+        const bubbleCount = currentBubbles ? Object.keys(currentBubbles).length : 0;
+        if (bubbleCount >= 8) return; // Limit max bubbles
 
-      const randomPlayer = players[Math.floor(Math.random() * players.length)];
-      const size = 60 + Math.random() * 40;
-      
-      const newBubble: Omit<BubbleData, 'id'> = {
-        name: randomPlayer.name,
-        x: 10 + Math.random() * 80,
-        size,
-        speed: 0.02 + Math.random() * 0.03,
-        wobbleOffset: Math.random() * Math.PI * 2,
-        spawnTime: Date.now(),
-        popped: false,
-        hasBee: Math.random() < 0.25 // 25% chance to have a bee
-      };
+        const randomPlayer = players[Math.floor(Math.random() * players.length)];
+        const size = 60 + Math.random() * 40;
+        
+        const newBubble: Omit<BubbleData, 'id'> = {
+          name: randomPlayer.name,
+          x: 10 + Math.random() * 80,
+          size,
+          speed: 0.02 + Math.random() * 0.03,
+          wobbleOffset: Math.random() * Math.PI * 2,
+          spawnTime: Date.now(),
+          popped: false,
+          hasBee: Math.random() < 0.25 // 25% chance to have a bee
+        };
 
-      push(ref(db, `rooms/${roomId}/bubbles`), newBubble);
+        push(ref(db, `rooms/${roomId}/bubbles`), newBubble);
+      }).catch((err: any) => {
+        console.error("Error checking bubbles:", err);
+      });
     }, 35000); // Spawn every 35 seconds
 
     // Cleanup old bubbles (older than 60s)
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
-      bubbles.forEach(b => {
-        if ((b.popped && b.popTime && now - b.popTime > 5000) || (now - b.spawnTime > 60000)) {
-           remove(ref(db, `rooms/${roomId}/bubbles/${b.id}`));
-        }
+      get(ref(db, `rooms/${roomId}/bubbles`)).then((snapshot) => {
+        const currentBubbles = snapshot.val();
+        if (!currentBubbles) return;
+        
+        Object.entries(currentBubbles).forEach(([key, value]: [string, any]) => {
+          const b = value as BubbleData;
+          if ((b.popped && b.popTime && now - b.popTime > 5000) || (now - b.spawnTime > 60000)) {
+            remove(ref(db, `rooms/${roomId}/bubbles/${key}`));
+          }
+        });
+      }).catch((err: any) => {
+        console.error("Error cleaning up bubbles:", err);
       });
     }, 10000);
 
@@ -436,7 +452,7 @@ function App() {
       clearInterval(spawnInterval);
       clearInterval(cleanupInterval);
     };
-  }, [isCreator, roomId, players, bubbles]);
+  }, [isCreator, roomId, players]);
 
   const handleBubblePop = (id: string) => {
     if (!roomId) return;
