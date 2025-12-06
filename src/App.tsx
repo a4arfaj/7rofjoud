@@ -366,16 +366,21 @@ function App() {
         }
         return currentGrid;
       });
-    }, 5000); // TEMPORARY FOR TESTING: 5 seconds
+    }, 45000 + Math.random() * 30000); // Random 45-75s
 
     return () => clearInterval(interval);
   }, [isCreator, roomId]);
 
   const handleBeeReachTarget = () => {
     if (isCreator && activeBeeCell && roomId) {
-      const index = grid.findIndex(c => c.id === activeBeeCell.id);
-      if (index !== -1) {
-         update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+      // Use activeBeeCell directly since it's the target
+      // Verify it's still colored in the latest grid
+      const currentCell = grid.find(c => c.id === activeBeeCell.id);
+      if (currentCell && (currentCell.state === 2 || currentCell.state === 3)) {
+         const index = grid.findIndex(c => c.id === activeBeeCell.id);
+         if (index !== -1) {
+           update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+         }
       }
     }
   };

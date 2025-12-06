@@ -35,26 +35,26 @@ const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish
         const dy = targetY - pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < 5) {
-          setState('hovering');
-          onReachTarget();
-          startTimeRef.current = now; // Reset timer for hovering
-        } else {
-          // Move logic
-          const speed = 4; // pixels per frame
-          const angle = Math.atan2(dy, dx);
-          setPos({
-            x: pos.x + Math.cos(angle) * speed,
-            y: pos.y + Math.sin(angle) * speed
-          });
-          setRotation(angle * (180 / Math.PI) + 90); // +90 to align bee head
-        }
-      } else if (state === 'hovering') {
-        // Hover motion
-        if (elapsed > 2000) { // Hover for 2 seconds
-          setState('leaving');
-          startTimeRef.current = now; // Reset timer for leaving
-        } else {
+          if (dist < 5) {
+            setState('hovering');
+            onReachTarget();
+            startTimeRef.current = now; // Reset timer for hovering
+          } else {
+            // Move logic
+            const speed = 2; // Slower speed (was 4)
+            const angle = Math.atan2(dy, dx);
+            setPos({
+              x: pos.x + Math.cos(angle) * speed,
+              y: pos.y + Math.sin(angle) * speed
+            });
+            setRotation(angle * (180 / Math.PI) + 90); // +90 to align bee head
+          }
+        } else if (state === 'hovering') {
+          // Hover motion
+          if (elapsed > 3000) { // Hover for 3 seconds
+            setState('leaving');
+            startTimeRef.current = now; // Reset timer for leaving
+          } else {
           // Bobbing motion
           setPos({
             x: targetX + Math.sin(elapsed * 0.01) * 5,
@@ -106,10 +106,24 @@ const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish
     >
       {/* Simple Bee SVG */}
       <svg viewBox="0 0 100 100" width="100%" height="100%">
+        <style>
+          {`
+            @keyframes flutter-left {
+              0%, 100% { transform: rotate(-30deg); }
+              50% { transform: rotate(-10deg); }
+            }
+            @keyframes flutter-right {
+              0%, 100% { transform: rotate(30deg); }
+              50% { transform: rotate(10deg); }
+            }
+            .wing-left { transform-origin: 30px 40px; animation: flutter-left 0.1s infinite; }
+            .wing-right { transform-origin: 70px 40px; animation: flutter-right 0.1s infinite; }
+          `}
+        </style>
         <g>
           {/* Wings */}
-          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(255,255,255,0.8)" transform="rotate(-30 30 40)" className="animate-pulse" />
-          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(255,255,255,0.8)" transform="rotate(30 70 40)" className="animate-pulse" />
+          <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(255,255,255,0.8)" className="wing-left" />
+          <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(255,255,255,0.8)" className="wing-right" />
           
           {/* Body */}
           <ellipse cx="50" cy="50" rx="25" ry="35" fill="#FFD700" stroke="black" strokeWidth="2" />
