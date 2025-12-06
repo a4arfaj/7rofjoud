@@ -8,7 +8,7 @@ import {
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
-import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET } from './constants';
+import { ARABIC_LETTERS, HEX_SIZE, HONEYCOMB_HORIZONTAL_POSITION, ORANGE_INNER_EDGE_LENGTH, ORANGE_INNER_EDGE_WIDTH, ORANGE_INNER_EDGE_POSITION, ORANGE_OUTER_EDGE_LENGTH, ORANGE_OUTER_EDGE_OFFSET, GREEN_INNER_EDGE_WIDTH, GREEN_INNER_EDGE_POSITION, GREEN_OUTER_EDGE_LENGTH, GREEN_OUTER_EDGE_OFFSET, FRAME_BORDER_WIDTH, FRAME_BORDER_COLOR, FRAME_BORDER_RADIUS, FRAME_PADDING_EXTRA } from './constants';
 import { db } from './firebase';
 import { ref, set, onValue, update, get, onDisconnect, runTransaction, push, remove } from 'firebase/database';
 import type { BubbleData, Player, BuzzerState } from './types';
@@ -811,12 +811,12 @@ function App() {
                         left: `calc(50% - ${Math.max(orangeLeftExtension, orangeRightExtension) * 100}%)`,
                         top: `calc(50% - ${Math.max(greenTopExtension, greenBottomExtension) * 100}%)`,
                         transform: 'translate(-50%, -50%)',
-                        width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}%)`,
-                        height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}%)`,
-                        maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 800)}px)`,
-                        maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 800)}px)`,
-                        border: '8px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: '20px',
+                        width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}% + ${FRAME_PADDING_EXTRA * 2}%)`,
+                        height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}% + ${FRAME_PADDING_EXTRA * 2}%)`,
+                        maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 800)}px + ${FRAME_PADDING_EXTRA * 16}px)`,
+                        maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 800)}px + ${FRAME_PADDING_EXTRA * 16}px)`,
+                        border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
+                        borderRadius: `${FRAME_BORDER_RADIUS}px`,
                         boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
                       }}
                     />
@@ -907,12 +907,12 @@ function App() {
                   left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% - ${Math.max(orangeLeftExtension, orangeRightExtension) * 100}%)`,
                   top: `calc(50% - ${Math.max(greenTopExtension, greenBottomExtension) * 100}%)`,
                   transform: 'translate(-50%, -50%)',
-                  width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}%)`,
-                  height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}%)`,
-                  maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 900)}px)`,
-                  maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 900)}px)`,
-                  border: '8px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '20px',
+                  width: `calc(${baseSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 200)}% + ${FRAME_PADDING_EXTRA * 2}%)`,
+                  height: `calc(${baseSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 200)}% + ${FRAME_PADDING_EXTRA * 2}%)`,
+                  maxWidth: `calc(${baseMaxSize} + ${(Math.max(orangeLeftExtension, orangeRightExtension) * 900)}px + ${FRAME_PADDING_EXTRA * 18}px)`,
+                  maxHeight: `calc(${baseMaxSize} + ${(Math.max(greenTopExtension, greenBottomExtension) * 900)}px + ${FRAME_PADDING_EXTRA * 18}px)`,
+                  border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
+                  borderRadius: `${FRAME_BORDER_RADIUS}px`,
                   boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
                 }}
               />

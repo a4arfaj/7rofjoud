@@ -60,3 +60,16 @@ export const BEAM_ANIMATION_SPEED = 1.2; // Speed of beam mode animation in seco
 // Controls how fast the beam spins around the cell border
 // Lower values = faster spin, Higher values = slower spin
 
+// Frame Controls
+export const FRAME_BORDER_WIDTH = 8; // Width of frame border in pixels
+// Controls the thickness of the frame border around the zones
+export const FRAME_BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'; // Color of frame border
+// Controls the color and opacity of the frame border
+// Format: rgba(red, green, blue, opacity) where opacity is 0-1
+export const FRAME_BORDER_RADIUS = 20; // Border radius of frame in pixels
+// Controls how rounded the frame corners are
+// Higher values = more rounded corners
+export const FRAME_PADDING_EXTRA = 0; // Extra padding to add around zones in percentage
+// Additional padding to add around the outer edges of zones
+// 0 = frame fits exactly to zone edges, positive = adds space outside zones
+
