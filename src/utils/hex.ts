@@ -11,6 +11,11 @@ export interface HexCellData extends HexCoord {
   state: 0 | 1 | 2 | 3; // 0: Original, 1: Glowing Yellow (selection), 2: Orange, 3: Green
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export function generateHexGrid(letters: string[]): HexCellData[] {
   const hexes: HexCellData[] = [];
   const shuffled = shuffleArray(letters);
@@ -41,7 +46,7 @@ function shuffleArray<T>(input: T[]): T[] {
   return arr;
 }
 
-export function hexToPixel(hex: HexCoord, size: number): { x: number; y: number } {
+export function hexToPixel(hex: HexCoord, size: number): Point {
   // Pointy-topped hexagon with odd-row offset
   // For pointy-topped: width = sqrt(3) * size, height = 2 * size
   const hexWidth = size * Math.sqrt(3);
@@ -55,8 +60,8 @@ export function hexToPixel(hex: HexCoord, size: number): { x: number; y: number 
   return { x, y };
 }
 
-export function getHexCorners(center: { x: number; y: number }, size: number): { x: number; y: number }[] {
-  const corners = [];
+export function getHexCorners(center: Point, size: number): Point[] {
+  const corners: Point[] = [];
   for (let i = 0; i < 6; i++) {
     // Pointy-topped: start at 30 degrees (point facing up)
     const angle_deg = 60 * i + 30;

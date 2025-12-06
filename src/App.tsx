@@ -5,6 +5,7 @@ import Bubbles from './components/Bubbles';
 import Bee from './components/Bee';
 import {
   generateHexGrid,
+  hexToPixel,
 } from './utils/hex';
 import type { HexCellData } from './utils/hex';
 import type { CSSProperties } from 'react';
@@ -27,6 +28,7 @@ function App() {
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
   const [beeStartTime, setBeeStartTime] = useState<number | null>(null);
   const lastBeeTimestampRef = useRef<number>(0);
+  const beeSchedulerTimeoutRef = useRef<number | null>(null);
   
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
@@ -46,7 +48,8 @@ function App() {
   const resetTimerIntervalRef = useRef<number | null>(null);
   const lastBuzzerPlayerRef = useRef<string | null>(null);
   const [showCard, setShowCard] = useState(false);
-  const allowRedRef = useRef<boolean>(true); // red allowed once per round after card ack
+  // Red is allowed by default; becomes disallowed only when red ends naturally.
+  const allowRedRef = useRef<boolean>(true);
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -287,13 +290,9 @@ function App() {
           
           // Detect when buzzer becomes active
           if (newBuzzer.active && !prevBuzzer.active) {
-            // Buzzer just became active - play win sound for the winner
+            // Only the winner hears the win sound; others silent
             if (newBuzzer.playerName === playerName) {
-              // This player won - play win sound
               playWinSound();
-            } else {
-              // Someone else won - play buzz sound
-              playBuzzSound();
             }
           }
           
@@ -452,32 +451,123 @@ function App() {
       return;
     }
     
-    const interval = setInterval(() => {
-      setGrid(currentGrid => {
-        // Find colored cells
-        const coloredCells = currentGrid.filter(c => c.state === 2 || c.state === 3);
-        if (coloredCells.length > 0) {
-          const randomCell = coloredCells[Math.floor(Math.random() * coloredCells.length)];
-          update(ref(db, `rooms/${roomId}`), {
-            beeTarget: { id: randomCell.id, timestamp: Date.now() }
+    const scheduleNextBee = () => {
+      // Random interval between 70-80 seconds
+      const intervalMs = 70000 + Math.random() * 10000; // 70-80 seconds
+      
+      beeSchedulerTimeoutRef.current = window.setTimeout(() => {
+        // 50% chance that bee comes at all
+        if (Math.random() < 0.5) {
+          setGrid(currentGrid => {
+            // Pick Real Target (Random Cell)
+            const realTarget = currentGrid[Math.floor(Math.random() * currentGrid.length)];
+            
+            // 30% chance to fake a cell (fake-out)
+            const shouldFake = Math.random() < 0.3;
+            
+            if (shouldFake && currentGrid.length > 1) {
+              // Fake-out path: fly to fake target first, then redirect
+              // 1. Pick Fake Target (different from real)
+              let fakeTarget = currentGrid[Math.floor(Math.random() * currentGrid.length)];
+              while (fakeTarget.id === realTarget.id) {
+                fakeTarget = currentGrid[Math.floor(Math.random() * currentGrid.length)];
+              }
+
+              // 2. Start flight to Fake Target
+              const now = Date.now();
+              update(ref(db, `rooms/${roomId}`), {
+                beeTarget: { id: fakeTarget.id, timestamp: now }
+              });
+
+              // Calculate flight time to fake target to ensure we switch BEFORE landing
+              const centers = currentGrid.map(c => hexToPixel(c, HEX_SIZE));
+              if (centers.length > 0) {
+                const xs = centers.map(p => p.x);
+                const ys = centers.map(p => p.y);
+                const minX = Math.min(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+                const padding = HEX_SIZE * 1.6;
+                
+                // Bee start pos (from Bee.tsx)
+                const startX = (minX - padding) - 100;
+                const viewBoxHeight = (maxY - minY) + padding * 2;
+                const startY = (minY - padding) + viewBoxHeight / 2;
+                
+                const targetPixel = hexToPixel(fakeTarget, HEX_SIZE);
+                const dist = Math.sqrt(Math.pow(targetPixel.x - startX, 2) + Math.pow(targetPixel.y - startY, 2));
+                const flightDuration = (dist / 80) * 1000; // 80px/s speed
+                
+                // Switch at 50-55% of the way (well before landing)
+                // Ensure we switch early enough so bee never lands on fake target
+                // Calculate switch time: use 50% of flight duration, but cap it to ensure we're always before landing
+                const switchPercentage = 0.50; // Switch at 50% of flight
+                const safetyMargin = 800; // Safety margin: always switch at least 800ms before landing
+                const switchTime = Math.min(
+                  flightDuration * switchPercentage, // 50% of flight
+                  flightDuration - safetyMargin      // Always at least 800ms before landing
+                );
+
+                // Switch to Real Target mid-flight (Fake-out) - MUST happen before landing
+                // Use the calculated switch time with a minimum to ensure it always executes
+                const finalSwitchTime = Math.max(500, switchTime);
+                setTimeout(() => {
+                   update(ref(db, `rooms/${roomId}`), {
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                   });
+                }, finalSwitchTime);
+              } else {
+                 // Fallback if grid empty
+                 setTimeout(() => {
+                   update(ref(db, `rooms/${roomId}`), {
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                   });
+                 }, 2500);
+              }
+            } else {
+              // Direct path: fly straight to real target (no fake-out)
+              const now = Date.now();
+              update(ref(db, `rooms/${roomId}`), {
+                beeTarget: { id: realTarget.id, timestamp: now }
+              });
+            }
+
+            return currentGrid;
           });
         }
-        return currentGrid;
-      });
-    }, 10000); // 10 seconds for testing
+        
+        // Schedule next bee (recursive)
+        scheduleNextBee();
+      }, intervalMs);
+    };
 
-    return () => clearInterval(interval);
-  }, [isCreator, roomId, gameSettings.showBee]); // Added gameSettings.showBee dependency
+    // Start first bee after initial delay
+    scheduleNextBee();
+    
+    return () => {
+      if (beeSchedulerTimeoutRef.current !== null) {
+        clearTimeout(beeSchedulerTimeoutRef.current);
+        beeSchedulerTimeoutRef.current = null;
+      }
+    };
+  }, [isCreator, roomId, gameSettings.showBee]);
 
   const handleBeeReachTarget = () => {
     if (isCreator && activeBeeCell && roomId) {
-      // Use activeBeeCell directly since it's the target
-      // Verify it's still colored in the latest grid
       const currentCell = grid.find(c => c.id === activeBeeCell.id);
-      if (currentCell && (currentCell.state === 2 || currentCell.state === 3)) {
+      if (currentCell) {
          const index = grid.findIndex(c => c.id === activeBeeCell.id);
          if (index !== -1) {
-           update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+           if (currentCell.state === 2 || currentCell.state === 3) {
+             // If colored, clear it
+             update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+           } else {
+             // If uncolored, 1% chance to color randomly
+             if (Math.random() < 0.01) {
+               const newState = Math.random() < 0.5 ? 2 : 3; // orange or green
+               update(ref(db, `rooms/${roomId}/grid/${index}`), { state: newState });
+             }
+           }
          }
       }
     }
@@ -587,19 +677,10 @@ function App() {
       // Update last buzzer player
       lastBuzzerPlayerRef.current = buzzer.playerName;
 
-      // Start timer immediately when buzzer is pressed (only if not already running)
+      // Start green immediately on press (if no timer running)
       if (!resetTimer) {
         setShowCard(false);
         setResetTimer({ active: true, phase: 'initial', time: 4 });
-      }
-    } else if (!buzzer.active && resetTimer) {
-      // Clear timer if buzzer is reset externally
-      setResetTimer(null);
-      setShowCard(true);
-      allowRedRef.current = false; // need card click to allow red again
-      if (resetTimerIntervalRef.current) {
-        window.clearInterval(resetTimerIntervalRef.current);
-        resetTimerIntervalRef.current = null;
       }
     }
   }, [buzzer.active, buzzer.playerName, buzzer.timestamp]);
@@ -621,15 +702,13 @@ function App() {
         if (current.time <= 1) {
           // Phase transition or reset
           if (current.phase === 'initial') {
-            // Play times up sound when 4 seconds finish
-            playTimesUpSound();
-            // If red allowed, start red; otherwise reset and show card
+            // Play times up sound when 4 seconds finish (host only)
+            if (isCreator) playTimesUpSound();
+            // If red allowed, go to red; otherwise end and show card
             if (allowRedRef.current) {
-              // Allow only once until card pressed again
-              allowRedRef.current = false;
               return { active: true, phase: 'countdown', time: 15 };
             }
-            // Reset buzzer, show card
+            // red not allowed: reset buzzer and show card
             if (roomId) {
               update(ref(db, `rooms/${roomId}/buzzer`), {
                 active: false,
@@ -640,7 +719,7 @@ function App() {
             setShowCard(true);
             return null;
           } else {
-            // Countdown finished - reset buzzer and close
+            // Countdown finished - reset buzzer and show card, and DISALLOW red until card is pressed
             if (roomId) {
               update(ref(db, `rooms/${roomId}/buzzer`), {
                 active: false,
@@ -649,7 +728,7 @@ function App() {
               });
             }
             setShowCard(true);
-            allowRedRef.current = false;
+            allowRedRef.current = false; // only re-allowed when card button pressed
             return null;
           }
         }
@@ -669,10 +748,16 @@ function App() {
   // Handle Start Red Phase (manually triggered)
   const handleStartRedPhase = () => {
     if (!isCreator) return;
-    // Card click re-enables red for next buzzer; no immediate red start
-    allowRedRef.current = true;
+    // Card acknowledged, hide it; re-allow red for next cycle
     setShowCard(false);
+    allowRedRef.current = true;
   };
+
+  // When entering a room, allow red for the first green completion
+  useEffect(() => {
+    if (roomId) {
+    }
+  }, [roomId]);
 
   // Win detection disabled - free editing enabled
 
@@ -689,7 +774,7 @@ function App() {
     }).join('');
   };
 
-  // Handle Reset Buzzer (Host) - restore for manual reset
+  // Handle Reset Buzzer (Host) - manual reset in red; do not show card
   const handleResetBuzzer = () => {
     if (!isCreator) return;
     if (roomId) {
@@ -700,8 +785,7 @@ function App() {
       });
     }
     setResetTimer(null);
-    setShowCard(true); // show card so host can re-enable red
-    allowRedRef.current = false; // require card click to allow red again
+    setShowCard(false); // manual reset: keep card hidden
     if (resetTimerIntervalRef.current) {
       window.clearInterval(resetTimerIntervalRef.current);
       resetTimerIntervalRef.current = null;
@@ -833,7 +917,7 @@ function App() {
                         <li key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded shadow-sm flex-row-reverse">
                           <span className="font-bold">{p.name}</span>
                           <span className={`text-xs px-2 py-1 rounded-full text-white ${p.team === 'green' ? 'bg-[#3fa653]' : 'bg-[#f4841f]'}`}>
-                            {p.team === 'green' ? 'أخضر' : 'برتقالي'}
+                            {p.team === 'green' ? 'طولي' : 'عرضي'}
                           </span>
                         </li>
                       ))}
@@ -861,25 +945,27 @@ function App() {
                       {toArabicNumerals(resetTimer.time.toString())}
                     </div>
                     
-                    {/* Phase Text */}
-                    <div className="text-3xl md:text-4xl font-bold mb-8">
-                      {resetTimer.phase === 'initial' ? 'جاهز...' : 'انتهى الوقت!'}
-                    </div>
+            {/* Phase Text */}
+            <div className="text-3xl md:text-4xl font-bold mb-6">
+              {resetTimer.phase === 'initial' ? 'جاهز...' : 'انتهى الوقت!'}
+            </div>
 
-            {/* Reset Button - show in red phase to end it and show the card */}
-            {resetTimer.phase === 'countdown' && (
-              <button
-                onClick={handleResetBuzzer}
-                className="mt-4 px-8 py-3 rounded-full text-xl font-bold hover:bg-gray-100 active:scale-95 transition-transform shadow-2xl bg-white text-red-600"
-              >
-                استأنف الأزرار
-              </button>
-            )}
+            {/* Reset Button - in both phases (green/red) */}
+            <button
+              onClick={handleResetBuzzer}
+              className={`mt-2 px-8 py-3 rounded-full text-xl font-bold hover:bg-gray-100 active:scale-95 transition-transform shadow-2xl ${
+                resetTimer.phase === 'initial'
+                  ? 'bg-white text-green-600'
+                  : 'bg-white text-red-600'
+              }`}
+            >
+              استأنف الأزرار
+            </button>
                   </div>
                 </div>
               )}
 
-              {/* Small Tab - Shows when red phase is not running */}
+      {/* Small Tab - Shows when red phase is not running */}
       {isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown') && (
                 <div className="absolute px-6 py-4 rounded-xl shadow-lg transition-all transform bg-green-500 text-white scale-110" dir="rtl" style={{ top: '80px', right: '20px', zIndex: 60 }}>
                   <div className="text-center">

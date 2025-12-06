@@ -37,11 +37,20 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   const viewBoxMinX = minX - padding;
   const viewBoxMinY = minY - padding;
 
+  // Start position for the current flight segment
+  const flightStartPosRef = useRef({ x: viewBoxMinX - 100, y: viewBoxMinY + viewBoxHeight / 2 });
+
   // Reset when target changes
   useEffect(() => {
     if (targetCell) {
-      // Start from off-screen left (in SVG coordinates)
-      posRef.current = { x: viewBoxMinX - 100, y: viewBoxMinY + viewBoxHeight / 2 };
+      // If we were already flying/landed, start from current position to avoid jump
+      if (posRef.current.x !== -200) {
+        flightStartPosRef.current = { ...posRef.current };
+      } else {
+        // First flight, start from off-screen
+        flightStartPosRef.current = { x: viewBoxMinX - 100, y: viewBoxMinY + viewBoxHeight / 2 };
+      }
+
       stateRef.current = 'flying-in';
       rotationRef.current = 0;
       // Use startTime from Firebase for sync across all clients
@@ -49,7 +58,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       landedTimeRef.current = null;
       hasCalledReachTarget.current = false;
     }
-  }, [targetCell, viewBoxMinX, viewBoxMinY, viewBoxHeight, startTime]);
+  }, [targetCell, startTime, viewBoxMinX, viewBoxMinY, viewBoxHeight]);
 
   const animate = useCallback(() => {
     if (!targetCell) {
@@ -70,15 +79,17 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       // This ensures all clients see the bee at the same position
       const flyElapsed = now - startTimeRef.current;
       const flySpeed = 80; // pixels per second
+      
+      // Use the stored start position for this flight segment
+      const startX = flightStartPosRef.current.x;
+      const startY = flightStartPosRef.current.y;
+
       const totalDistance = Math.sqrt(
-        Math.pow(targetX - (viewBoxMinX - 100), 2) + 
-        Math.pow(targetY - (viewBoxMinY + viewBoxHeight / 2), 2)
+        Math.pow(targetX - startX, 2) + 
+        Math.pow(targetY - startY, 2)
       );
       const flyDuration = (totalDistance / flySpeed) * 1000; // ms to reach target
-      const progress = Math.min(flyElapsed / flyDuration, 1);
-      
-      const startX = viewBoxMinX - 100;
-      const startY = viewBoxMinY + viewBoxHeight / 2;
+      const progress = flyDuration > 0 ? Math.min(flyElapsed / flyDuration, 1) : 1;
       
       if (progress >= 1) {
         stateRef.current = 'landed';
