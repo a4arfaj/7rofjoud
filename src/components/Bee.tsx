@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { hexToPixel } from '../utils/hex';
+import { hexToPixel, getHexCorners } from '../utils/hex';
 import type { HexCellData } from '../utils/hex';
 
 interface BeeProps {
@@ -8,20 +8,36 @@ interface BeeProps {
   onReachTarget: () => void;
   onFinish: () => void;
   hexSize: number;
+  grid: HexCellData[];
 }
 
-const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish, hexSize }) => {
+const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish, hexSize, grid }) => {
   const [pos, setPos] = useState(startPos);
   const [state, setState] = useState<'flying-in' | 'hovering' | 'leaving'>('flying-in');
   const [rotation, setRotation] = useState(0);
   const requestRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(Date.now());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!targetCell) return;
+    if (!targetCell) {
+      // Reset position when target is cleared
+      setPos(startPos);
+      setState('flying-in');
+      setRotation(0);
+      startTimeRef.current = Date.now();
+      return;
+    }
 
-    const targetPixel = hexToPixel(targetCell, hexSize); // Layout size is roughly hexSize
-    // Adjust for center of hex
+    // Reset state when target changes
+    setPos(startPos);
+    setState('flying-in');
+    setRotation(0);
+    startTimeRef.current = Date.now();
+
+    const layoutSize = hexSize * 1.0; // Match HEX_SPACING from HexGrid
+    const targetPixel = hexToPixel(targetCell, layoutSize);
+    // Get hex center - hexToPixel gives us the center already
     const targetX = targetPixel.x;
     const targetY = targetPixel.y;
 
@@ -93,12 +109,32 @@ const Bee: React.FC<BeeProps> = ({ targetCell, startPos, onReachTarget, onFinish
 
   if (!targetCell) return null;
 
+  // Use percentage-based positioning relative to container
+  // The SVG is centered in its container, so we need to calculate the position
+  // relative to the container's center
+  const layoutSize = hexSize * 1.0;
+  const gridCenters = grid ? grid.map(c => hexToPixel(c, layoutSize)) : [];
+  const xs = gridCenters.map(p => p.x);
+  const ys = gridCenters.map(p => p.y);
+  const minX = xs.length > 0 ? Math.min(...xs) : 0;
+  const maxX = xs.length > 0 ? Math.max(...xs) : 0;
+  const minY = ys.length > 0 ? Math.min(...ys) : 0;
+  const maxY = ys.length > 0 ? Math.max(...ys) : 0;
+  const padding = hexSize * 1.6;
+  const viewBoxWidth = (maxX - minX) + padding * 2;
+  const viewBoxHeight = (maxY - minY) + padding * 2;
+  
+  // Convert SVG coordinates to percentage of viewBox
+  const percentX = ((pos.x - (minX - padding)) / viewBoxWidth) * 100;
+  const percentY = ((pos.y - (minY - padding)) / viewBoxHeight) * 100;
+
   return (
     <div
-      className="absolute pointer-events-none z-50 transition-transform duration-75"
+      ref={containerRef}
+      className="absolute pointer-events-none z-50"
       style={{
-        left: pos.x,
-        top: pos.y,
+        left: `${percentX}%`,
+        top: `${percentY}%`,
         transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
         width: '60px',
         height: '60px',

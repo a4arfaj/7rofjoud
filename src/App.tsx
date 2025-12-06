@@ -369,7 +369,7 @@ function App() {
         }
         return currentGrid;
       });
-    }, 45000 + Math.random() * 30000); // Random 45-75s
+    }, 10000); // 10 seconds for testing (was 45000 + Math.random() * 30000)
 
     return () => clearInterval(interval);
   }, [isCreator, roomId]);
@@ -1037,6 +1037,7 @@ function App() {
                 onReachTarget={handleBeeReachTarget} 
                 onFinish={handleBeeFinish} 
                 hexSize={HEX_SIZE}
+                grid={grid}
               />
             )}
           </div>
