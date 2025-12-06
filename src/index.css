@@ -47,15 +47,15 @@ body {
 }
 
 .glowing-yellow {
-  /* Animation: fade-in speed (0.3s) + glow-pulse speed (0.5s) */
-  /* Change 0.3s to adjust initial color fade speed */
-  /* Change 0.5s to adjust ongoing pulse speed */
-  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse 0.5s ease-in-out 0.3s infinite;
+  /* Animation: fade-in speed (1.5s) + glow-pulse speed (2.5s) */
+  /* Change 1.5s to adjust initial color fade speed */
+  /* Change 2.5s to adjust ongoing pulse speed */
+  animation: yellow-fade-in 1.5s ease-out forwards, glow-pulse 2.5s ease-in-out 1.5s infinite;
 }
 
 .glowing-yellow-glow {
-  /* Change 0.3s to adjust background glow pulse speed */
-  animation: glow-pulse-background 0.3s ease-in-out infinite;
+  /* Change 2.5s to adjust background glow pulse speed */
+  animation: glow-pulse-background 2.5s ease-in-out infinite;
 }
 
 @keyframes selection-beam-spin {
@@ -69,7 +69,7 @@ body {
 
 .selection-beam {
   stroke-dasharray: 50 25; /* 50 units dash, 25 units gap = 75 total */
-  /* Change 1.2s to adjust beam rotation speed */
-  animation: selection-beam-spin 1.2s linear infinite;
+  /* Change 3s to adjust beam rotation speed */
+  animation: selection-beam-spin 3s linear infinite;
   filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4)); /* Reduced shine */
 }
