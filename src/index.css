@@ -20,7 +20,7 @@ body {
     opacity: 0.5;
   }
   100% {
-    fill: var(--selection-end-color, #fcea1a); /* End color from constants */
+    fill: var(--selection-end-color, #b6a705); /* End color from constants */
     opacity: 1;
   }
 }
@@ -47,11 +47,15 @@ body {
 }
 
 .glowing-yellow {
-  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse var(--selection-animation-speed, 0.5s) ease-in-out 0.3s infinite;
+  /* Animation: fade-in speed (0.3s) + glow-pulse speed (0.5s) */
+  /* Change 0.3s to adjust initial color fade speed */
+  /* Change 0.5s to adjust ongoing pulse speed */
+  animation: yellow-fade-in 0.3s ease-out forwards, glow-pulse 0.5s ease-in-out 0.3s infinite;
 }
 
 .glowing-yellow-glow {
-  animation: glow-pulse-background var(--selection-animation-speed, 1.5s) ease-in-out infinite;
+  /* Change 0.3s to adjust background glow pulse speed */
+  animation: glow-pulse-background 0.3s ease-in-out infinite;
 }
 
 @keyframes selection-beam-spin {
@@ -65,6 +69,7 @@ body {
 
 .selection-beam {
   stroke-dasharray: 50 25; /* 50 units dash, 25 units gap = 75 total */
-  animation: selection-beam-spin var(--beam-animation-speed, 1.2s) linear infinite;
+  /* Change 1.2s to adjust beam rotation speed */
+  animation: selection-beam-spin 1.2s linear infinite;
   filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4)); /* Reduced shine */
 }
