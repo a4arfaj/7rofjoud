@@ -22,3 +22,9 @@ export interface BuzzerState {
   timestamp: number;
 }
 
+export type ResetTimer = {
+  active: boolean;
+  phase: 'initial' | 'countdown';
+  time: number;
+};
+

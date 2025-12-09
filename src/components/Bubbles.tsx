@@ -17,32 +17,32 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
-      
+
       // Map incoming bubbles to animated state
       const nextBubbles = bubbles.map(b => {
         // Calculate position based on time
         const elapsed = now - b.spawnTime;
-        
+
         let y = 110 - (elapsed * b.speed / 20); // Base movement up
-        
+
         if (b.popped && b.popTime) {
           // If popped, calculate fall from the pop position
           const timeSincePop = now - b.popTime;
           const popElapsed = b.popTime - b.spawnTime;
           const popY = 110 - (popElapsed * b.speed / 20);
-          
+
           // Fall logic: accelerate down
           // Simple physics: y = y0 + v*t + 0.5*g*t^2
           // We just add to y based on timeSincePop
-          y = popY + (timeSincePop * 0.05); 
+          y = popY + (timeSincePop * 0.05);
         }
-        
+
         return { ...b, currentY: y };
       }).filter(b => {
-         // Filter out bubbles that are way off screen
-         if (b.popped && b.popTime && (now - b.popTime > 5000)) return false;
-         if (!b.popped && b.currentY < -20) return false;
-         return true;
+        // Filter out bubbles that are way off screen
+        if (b.popped && b.popTime && (now - b.popTime > 5000)) return false;
+        if (!b.popped && b.currentY < -20) return false;
+        return true;
       });
 
       setAnimatedBubbles(nextBubbles);
@@ -82,8 +82,8 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
           {/* Content - Text or Bee - separate element to handle "pop" visualization correctly (doesn't scale down) */}
           {/* We move it with the bubble */}
           <div
-             className="absolute flex items-center justify-center pointer-events-none"
-             style={{
+            className="absolute flex items-center justify-center pointer-events-none"
+            style={{
               left: `${b.x}%`,
               top: `${b.currentY}%`,
               width: `${b.size}px`,
@@ -91,13 +91,13 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
               transform: `translateX(${Math.sin(b.currentY * 0.1 + b.wobbleOffset) * 20}px)`,
               opacity: b.popped && b.popTime ? Math.max(0, 1 - (Date.now() - b.popTime) / 5000) : 1,
               transition: 'opacity 0.1s'
-             }}
+            }}
           >
             {b.hasBee ? (
               /* Bee SVG */
-              <svg 
-                viewBox="0 0 100 100" 
-                width={`${b.size * 0.6}px`} 
+              <svg
+                viewBox="0 0 100 100"
+                width={`${b.size * 0.6}px`}
                 height={`${b.size * 0.6}px`}
                 className="wing-animated"
               >
@@ -119,39 +119,39 @@ const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
                   {/* Wings */}
                   <ellipse cx="30" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-left" />
                   <ellipse cx="70" cy="40" rx="20" ry="10" fill="rgba(200,200,255,0.7)" className="wing-right" />
-                  
+
                   {/* Body */}
                   <ellipse cx="50" cy="50" rx="22" ry="32" fill="#FFD700" stroke="black" strokeWidth="2" />
-                  
+
                   {/* Stripes */}
                   <path d="M32 40 Q50 32 68 40" stroke="black" strokeWidth="5" fill="none" />
                   <path d="M30 52 Q50 44 70 52" stroke="black" strokeWidth="5" fill="none" />
                   <path d="M35 64 Q50 56 65 64" stroke="black" strokeWidth="5" fill="none" />
-                  
+
                   {/* Head */}
                   <circle cx="50" cy="22" r="12" fill="#FFD700" stroke="black" strokeWidth="2" />
-                  
+
                   {/* Eyes */}
                   <circle cx="45" cy="20" r="4" fill="black" />
                   <circle cx="55" cy="20" r="4" fill="black" />
                   <circle cx="44" cy="18" r="1.5" fill="white" />
                   <circle cx="54" cy="18" r="1.5" fill="white" />
-                  
+
                   {/* Antennae */}
                   <path d="M45 12 Q42 5 38 2" stroke="black" strokeWidth="2" fill="none" />
                   <path d="M55 12 Q58 5 62 2" stroke="black" strokeWidth="2" fill="none" />
                   <circle cx="38" cy="2" r="2" fill="black" />
                   <circle cx="62" cy="2" r="2" fill="black" />
-                  
+
                   {/* Stinger */}
                   <path d="M50 82 L47 92 L53 92 Z" fill="#333" />
                 </g>
               </svg>
             ) : (
               /* Text with white color and border */
-              <span 
+              <span
                 className="font-bold truncate px-2 select-none"
-                style={{ 
+                style={{
                   fontSize: `${b.size * 0.25}px`,
                   fontFamily: "'Cairo', 'Amiri', 'Noto Sans Arabic', serif",
                   color: 'white',

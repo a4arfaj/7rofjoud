@@ -86,3 +86,4 @@ Share these from browser console:
 - All console.log messages starting with "Firebase"
 - Screenshot of Firebase Console → Realtime Database → Rules tab
 
+

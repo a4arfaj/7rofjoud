@@ -47,29 +47,145 @@ body {
 }
 
 .glowing-yellow {
-  /* Animation: fade-in speed (1.5s) + glow-pulse speed (2.5s) */
-  /* Change 1.5s to adjust initial color fade speed */
-  /* Change 2.5s to adjust ongoing pulse speed */
   animation: yellow-fade-in 1.5s ease-out forwards, glow-pulse 1.5s ease-in-out 1.5s infinite;
 }
 
 .glowing-yellow-glow {
-  /* Change 2.5s to adjust background glow pulse speed */
   animation: glow-pulse-background 1.5s ease-in-out infinite;
 }
 
 @keyframes selection-beam-spin {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: -75; /* Match the total pattern length (50 + 25) */
-  }
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -75; }
 }
 
 .selection-beam {
-  stroke-dasharray: 50 25; /* 50 units dash, 25 units gap = 75 total */
-  /* Change 3s to adjust beam rotation speed */
+  stroke-dasharray: 50 25;
   animation: selection-beam-spin 3s linear infinite;
-  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4)); /* Reduced shine */
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
+}
+
+/* Fire / Water themed cells */
+@keyframes fire-flicker {
+  0% { filter: drop-shadow(0 0 6px rgba(255, 140, 0, 0.35)); }
+  50% { filter: drop-shadow(0 0 10px rgba(255, 102, 0, 0.7)); }
+  100% { filter: drop-shadow(0 0 6px rgba(255, 140, 0, 0.35)); }
+}
+
+.fire-cell {
+  animation: fire-flicker 1.6s ease-in-out infinite;
+  transition: filter 0.2s ease;
+}
+
+.fire-rim {
+  opacity: 0.35;
+  filter: blur(4px);
+}
+
+@keyframes water-shift {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+.water-cell {
+  animation: water-shift 5s ease-in-out infinite;
+}
+
+@keyframes bubble-rise {
+  0% { transform: translateY(6%); opacity: 0; }
+  20% { opacity: 0.7; }
+  80% { opacity: 0.7; }
+  100% { transform: translateY(-10%); opacity: 0; }
+}
+
+.water-bubble {
+  fill: rgba(255, 255, 255, 0.8);
+  animation: bubble-rise 4.2s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.water-cell-group:hover .water-bubble {
+  animation-duration: 3s;
+  opacity: 0.9;
+}
+
+/* Fire flame */
+@keyframes fire-flare {
+  0% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.5)); }
+  50% { transform: scale(1.05) translateY(-2px); filter: drop-shadow(0 0 10px rgba(255, 160, 0, 0.8)); }
+  100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.5)); }
+}
+
+.fire-flame {
+  animation: fire-flare 1.4s ease-in-out infinite;
+  opacity: 0.9;
+}
+
+/* Fish */
+@keyframes fish-swim {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(var(--fish-range, 120px)); }
+}
+
+@keyframes fish-wiggle {
+  0% { transform: rotate(2deg); }
+  50% { transform: rotate(-3deg); }
+  100% { transform: rotate(2deg); }
+}
+
+.water-fish {
+  animation: fish-swim linear infinite;
+}
+
+.water-fish-body {
+  animation: none;
+}
+
+/* Water zone overlays (fire/ice theme) */
+@keyframes water-zone-shift {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 50% 20%; }
+  100% { background-position: 100% 0%; }
+}
+
+@keyframes water-zone-bubbles {
+  0% { background-position: 0 0, 20% 30%, 80% 60%; opacity: 0.6; }
+  50% { background-position: 10% 20%, 40% 50%, 90% 70%; opacity: 0.9; }
+  100% { background-position: 0 40%, 30% 70%, 80% 90%; opacity: 0.6; }
+}
+
+.water-zone {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #bbdefb 0%, #64b5f6 50%, #0d47a1 100%);
+  background-size: 120% 120%;
+  animation: water-zone-shift 10s ease-in-out infinite;
+}
+
+.water-zone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: inherit;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 55%),
+    radial-gradient(circle at 60% 40%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 55%);
+  background-repeat: no-repeat;
+  background-size: 35% 35%, 28% 28%, 30% 30%;
+  animation: water-zone-bubbles 6s ease-in-out infinite;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* Bubble Pop Animation */
+@keyframes bubble-pop-effect {
+  0% { transform: scale(1); opacity: 0.8; }
+  60% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.bubble-popping {
+  animation: bubble-pop-effect 0.2s ease-out forwards;
 }

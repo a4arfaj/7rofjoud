@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logoImage from '../assets/noback7rof.png';
+import { toArabicNumerals, toEnglishDigits } from '../utils/numerals';
 
 interface LobbyProps {
   onJoinRoom: (roomId: string, isCreator: boolean, playerName: string) => void;
@@ -13,21 +14,6 @@ const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, checkRoomExists, roomError })
   const [error, setError] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: 'create' | 'join', roomId?: string } | null>(null);
-
-  // Helper to convert Arabic numerals to English
-  const toEnglishDigits = (str: string) => {
-    return str.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
-  };
-
-  // Helper to convert numbers to Arabic numerals (Eastern Arabic numerals)
-  const toArabicNumerals = (num: string | null | undefined): string => {
-    if (!num) return '';
-    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    return num.split('').map(char => {
-      const digit = parseInt(char);
-      return isNaN(digit) ? char : arabicNumerals[digit];
-    }).join('');
-  };
 
   const handleCreateClick = () => {
     setPendingAction({ type: 'create' });
