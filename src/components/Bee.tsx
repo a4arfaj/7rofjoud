@@ -94,7 +94,8 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       if (progress >= 1) {
         stateRef.current = 'landed';
         posRef.current = { x: targetX, y: targetY };
-        rotationRef.current = 0;
+        // Keep the rotation from the flight (don't reset to 0 to avoid visual glitch)
+        // rotationRef.current stays as calculated during flight
         landedTimeRef.current = now;
       } else {
         posRef.current = {
@@ -115,12 +116,18 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         onReachTarget();
       }
       
+      // Stay still when landed - rotation stays at 0 (no rotation changes)
       // After 2 seconds total, fly away
       if (landedElapsed >= 2000) {
         stateRef.current = 'leaving';
         landedTimeRef.current = now; // reuse for leaving start time
+        // Calculate and set exit rotation immediately to avoid visual glitch
+        const exitX = viewBoxMinX + viewBoxWidth + 200;
+        const exitY = viewBoxMinY - 100;
+        const dx = exitX - pos.x;
+        const dy = exitY - pos.y;
+        rotationRef.current = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
       }
-      // Stay still when landed (no bobbing)
     } else if (state === 'leaving') {
       // Fly away to top-right (in SVG coordinates)
       const exitX = viewBoxMinX + viewBoxWidth + 200;
@@ -134,12 +141,17 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         const speed = 5;
         const dx = exitX - pos.x;
         const dy = exitY - pos.y;
-        const angle = Math.atan2(dy, dx);
+        const targetAngle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        
+        // Update rotation to match target direction (bee should face where it's going)
+        rotationRef.current = targetAngle;
+        
+        // Move in the direction of the exit
+        const angleRad = (targetAngle - 90) * Math.PI / 180;
         posRef.current = {
-          x: pos.x + Math.cos(angle) * speed,
-          y: pos.y + Math.sin(angle) * speed
+          x: pos.x + Math.cos(angleRad) * speed,
+          y: pos.y + Math.sin(angleRad) * speed
         };
-        rotationRef.current = angle * (180 / Math.PI) + 90;
       }
     }
 
