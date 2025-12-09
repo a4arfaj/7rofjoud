@@ -8,7 +8,6 @@ type SettingsMenuProps = {
   onSelectionModeChange: (mode: 'fill' | 'beam') => void;
   gameSettings: { showBee: boolean; showBubbles: boolean };
   zoneColors: { orange: string; green: string };
-  activeThemeId: string;
   onSettingChange: (key: string, value: any) => void;
 };
 
@@ -19,7 +18,6 @@ function SettingsMenu({
   onSelectionModeChange,
   gameSettings,
   zoneColors,
-  activeThemeId,
   onSettingChange,
 }: SettingsMenuProps) {
   if (!show) return null;

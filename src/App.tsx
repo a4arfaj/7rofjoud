@@ -1037,7 +1037,6 @@ function App() {
                 onSelectionModeChange={handleSelectionModeToggle}
                 gameSettings={gameSettings}
                 zoneColors={zoneColors}
-                activeThemeId={activeThemeId}
                 onSettingChange={handleSettingChange}
               />
 
