@@ -19,7 +19,7 @@ function SettingsMenu({
   onSelectionModeChange,
   gameSettings,
   zoneColors,
-  activeThemeId,
+  activeThemeId: _activeThemeId,
   onSettingChange,
 }: SettingsMenuProps) {
   if (!show) return null;

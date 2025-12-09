@@ -42,7 +42,6 @@ function HexCell({ cell, size, layoutSize, onClick, selectionMode = 'fill', rend
       ? 'url(#waterGradient)'
       : fillColor;
 
-  const strokeColor = isFireCell ? '#ffcc80' : isWaterCell ? '#bbdefb' : '#000000';
   const filterUrl = isFireCell ? 'url(#fireDistortion)' : isWaterCell ? 'url(#waterDistortion)' : undefined;
 
   const polygonClass = [

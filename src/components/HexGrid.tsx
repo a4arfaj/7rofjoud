@@ -41,7 +41,6 @@ function HexGrid({ grid, size, onCellClick, selectionMode = 'fill', orangeColor,
 
     // Treat green zones (blue zones) as water: simple triangles above and below the grid
     const gridWidth = maxX - minX;
-    const gridHeight = maxY - minY;
     const padX = size * 1.5;
     const padY = size * 1.2;
     const zoneWidth = gridWidth + padX * 2;
