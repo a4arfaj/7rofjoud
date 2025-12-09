@@ -15,6 +15,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   const posRef = useRef({ x: -200, y: 200 }); // Start off-screen left
   const stateRef = useRef<'flying-in' | 'landed' | 'leaving'>('flying-in');
   const rotationRef = useRef(0);
+  const leavingDirectionRef = useRef<number | null>(null); // Lock rotation direction when leaving
   // Use startTime from Firebase for sync, fallback to local time
   const startTimeRef = useRef(startTime || Date.now());
   const landedTimeRef = useRef<number | null>(null);
@@ -53,6 +54,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
 
       stateRef.current = 'flying-in';
       rotationRef.current = 0;
+      leavingDirectionRef.current = null;
       // Use startTime from Firebase for sync across all clients
       startTimeRef.current = startTime || Date.now();
       landedTimeRef.current = null;
@@ -121,33 +123,39 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       if (landedElapsed >= 2000) {
         stateRef.current = 'leaving';
         landedTimeRef.current = now; // reuse for leaving start time
-        // Calculate and set exit rotation immediately to avoid visual glitch
+        // Calculate and lock exit direction immediately (toward top-right corner)
+        // This prevents recalculation every frame which causes the stuck bug
         const exitX = viewBoxMinX + viewBoxWidth + 200;
         const exitY = viewBoxMinY - 100;
         const dx = exitX - pos.x;
         const dy = exitY - pos.y;
-        rotationRef.current = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        const exitAngle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        leavingDirectionRef.current = exitAngle; // Lock the direction
+        rotationRef.current = exitAngle;
       }
     } else if (state === 'leaving') {
-      // Fly away to top-right (in SVG coordinates)
-      const exitX = viewBoxMinX + viewBoxWidth + 200;
-      const exitY = viewBoxMinY - 100;
       const leaveElapsed = landedTimeRef.current ? now - landedTimeRef.current : 0;
 
       if (leaveElapsed > 3000) {
         onFinish();
         return;
       } else {
+        // Use locked direction instead of recalculating every frame
+        // This prevents the bee from getting stuck at the corner
+        if (leavingDirectionRef.current === null) {
+          // Fallback: calculate direction if somehow not set
+          const exitX = viewBoxMinX + viewBoxWidth + 200;
+          const exitY = viewBoxMinY - 100;
+          const dx = exitX - pos.x;
+          const dy = exitY - pos.y;
+          leavingDirectionRef.current = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        }
+        
         const speed = 5;
-        const dx = exitX - pos.x;
-        const dy = exitY - pos.y;
-        const targetAngle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        rotationRef.current = leavingDirectionRef.current; // Keep rotation locked
         
-        // Update rotation to match target direction (bee should face where it's going)
-        rotationRef.current = targetAngle;
-        
-        // Move in the direction of the exit
-        const angleRad = (targetAngle - 90) * Math.PI / 180;
+        // Move in the locked direction (no recalculation = no stuck bug)
+        const angleRad = (leavingDirectionRef.current - 90) * Math.PI / 180;
         posRef.current = {
           x: pos.x + Math.cos(angleRad) * speed,
           y: pos.y + Math.sin(angleRad) * speed
