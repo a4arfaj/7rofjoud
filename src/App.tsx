@@ -267,6 +267,55 @@ function App() {
     }
   };
 
+  // Random selection (roulette) sound
+  const playRandomSelectSound = async () => {
+    try {
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.value = 520; // Slightly lower, clearer tone
+
+      const now = audioContext.currentTime;
+      gainNode.gain.setValueAtTime(0.32, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.3);
+    } catch (error) {
+      console.error('Error playing random select sound:', error);
+    }
+  };
+
+  // Click sound for each cell change during random selection
+  const playClickSound = async () => {
+    try {
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Short, sharp click sound
+      oscillator.type = 'square';
+      oscillator.frequency.value = 800; // Higher frequency for a click sound
+
+      const now = audioContext.currentTime;
+      gainNode.gain.setValueAtTime(0.15, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.05);
+    } catch (error) {
+      console.error('Error playing click sound:', error);
+    }
+  };
+
   const checkRoomExists = async (id: string): Promise<boolean> => {
     try {
       const roomRef = ref(db, `rooms/${id}`);
@@ -803,6 +852,7 @@ function App() {
 
     clearRandomSelectionTimers();
     setIsRandomSelecting(true);
+    playRandomSelectSound();
 
     const baseGrid = grid.map((cell) => (cell.state === 1 ? { ...cell, state: 0 as 0 | 1 | 2 | 3 } : cell));
     const delays = buildSlowdownDelays(RANDOM_SPIN_DURATION_MS, 70, 1.18, 450);
@@ -820,8 +870,12 @@ function App() {
           cell.id === targetCell.id ? { ...cell, state: 1 as 0 | 1 | 2 | 3 } : cell
         );
         setGrid(nextGrid);
+        // Play click sound on every cell change
+        playClickSound();
 
         if (isFinal) {
+          // Play final sound on selection
+          playRandomSelectSound();
           if (roomId) {
             update(ref(db, `rooms/${roomId}`), { grid: nextGrid })
               .catch((err: any) => {
