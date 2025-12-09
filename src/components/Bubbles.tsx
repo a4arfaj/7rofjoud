@@ -13,22 +13,36 @@ interface AnimatedBubble extends BubbleData {
 const Bubbles: React.FC<BubblesProps> = ({ bubbles, onPop }) => {
   const [animatedBubbles, setAnimatedBubbles] = useState<AnimatedBubble[]>([]);
   const requestRef = useRef<number | undefined>(undefined);
+  const spawnTimeRef = useRef<Record<string, number>>({});
+  const popTimeRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
 
-      // Map incoming bubbles to animated state
+      // Ensure we have local spawn/pop timestamps so guests see animations from receipt time
+      bubbles.forEach((b) => {
+        if (!spawnTimeRef.current[b.id]) {
+          spawnTimeRef.current[b.id] = now;
+        }
+        if (b.popped && !popTimeRef.current[b.id]) {
+          popTimeRef.current[b.id] = now;
+        }
+      });
+
+      // Map incoming bubbles to animated state using local timing
       const nextBubbles = bubbles.map(b => {
-        // Calculate position based on time
-        const elapsed = now - b.spawnTime;
+        const spawn = spawnTimeRef.current[b.id] ?? now;
+        const elapsed = now - spawn;
 
         let y = 110 - (elapsed * b.speed / 20); // Base movement up
 
-        if (b.popped && b.popTime) {
+        if (b.popped) {
+          const popTime = popTimeRef.current[b.id] ?? now;
+          popTimeRef.current[b.id] = popTime;
           // If popped, calculate fall from the pop position
-          const timeSincePop = now - b.popTime;
-          const popElapsed = b.popTime - b.spawnTime;
+          const timeSincePop = now - popTime;
+          const popElapsed = popTime - spawn;
           const popY = 110 - (popElapsed * b.speed / 20);
 
           // Fall logic: accelerate down

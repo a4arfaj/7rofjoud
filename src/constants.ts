@@ -45,12 +45,53 @@ export const GREEN_OUTER_EDGE_OFFSET = -4.000000; // Vertical offset of green zo
 // Controls how far green zones extend outward from the grid edges
 // This replaces the old 2.5vh value, now as percentage of grid container
 
-// Water Zone Controls (fire/ice theme) — defaults mirror green zones, tweak as needed
-export const WATER_INNER_EDGE_LENGTH = GREEN_INNER_EDGE_LENGTH;
-export const WATER_INNER_EDGE_WIDTH = GREEN_INNER_EDGE_WIDTH;
-export const WATER_INNER_EDGE_POSITION = GREEN_INNER_EDGE_POSITION;
-export const WATER_OUTER_EDGE_LENGTH = GREEN_OUTER_EDGE_LENGTH;
-export const WATER_OUTER_EDGE_OFFSET = GREEN_OUTER_EDGE_OFFSET;
+// Water Zone Controls (fire/ice theme) — independent from green defaults
+// Adjust these to reposition/resize the blue triangles without affecting green
+export const WATER_INNER_EDGE_LENGTH = 20;   // % of grid width
+export const WATER_INNER_EDGE_WIDTH = 90;    // % depth from top/bottom
+export const WATER_INNER_EDGE_POSITION = 76; // % vertical offset of inner edge
+export const WATER_OUTER_EDGE_LENGTH = 130.9; // % horizontal length of outer edge
+export const WATER_OUTER_EDGE_OFFSET = -4.0;  // % vertical offset of outer edge
+export const WATER_POSITION_OFFSET_X = 31;     // % horizontal shift of water zones container
+export const WATER_POSITION_OFFSET_Y = 0;     // % vertical shift of water zones container
+export const WATER_LOWER_EDGE_POSITION = 80;   // % extra offset applied only to the lower water triangle
+
+// Water Zone Bubble Controls (fire/ice theme)
+export const WATER_ZONE_BUBBLE_OFFSET_X = -23; // % horizontal offset for all bubbles (positive = right, negative = left)
+// Adjusts the horizontal position of all bubbles in water zones
+export const WATER_ZONE_BUBBLE_OFFSET_Y = -167; // % vertical offset for all bubbles (positive = down, negative = up)
+// Adjusts the vertical position of all bubbles in water zones
+export const WATER_ZONE_BUBBLE_START_TOP = 15; // % from top/bottom where bubbles start (top triangle uses bottom, bottom triangle uses top)
+// Controls the starting position of bubbles in water zones
+// Higher values = bubbles start further from the edge
+export const WATER_ZONE_BUBBLE_ANIMATION_DURATION = 5; // Duration of bubble rise animation in seconds
+// Controls how fast bubbles rise through the water zones
+// Lower values = faster animation, Higher values = slower animation
+export const WATER_ZONE_BUBBLE_POSITIONS = [
+  { left: 3, size: 41, delay: 0 },    // left: % from left, size: px, delay: seconds
+  { left: 27, size: 19, delay: 0.9 },
+  { left: 14, size: 36, delay: 2.2 },
+  { left: 59, size: 28, delay: 1.7 },
+  { left: 42, size: 23, delay: 3.3 },
+  { left: 8, size: 39, delay: 2.8 },
+  { left: 73, size: 31, delay: 4.1 },
+  { left: 21, size: 26, delay: 3.6 },
+  { left: 51, size: 34, delay: 5.2 },
+  { left: 35, size: 20, delay: 4.7 },
+  { left: 66, size: 37, delay: 6.4 },
+  { left: 17, size: 29, delay: 5.9 },
+  { left: 48, size: 22, delay: 7.1 },
+  { left: 31, size: 40, delay: 6.8 },
+  { left: 79, size: 25, delay: 8.3 },
+  { left: 11, size: 33, delay: 7.7 },
+  { left: 54, size: 50, delay: 8.1 },
+  { left: 38, size: 30, delay: 7.6 },
+  { left: 69, size: 24, delay: 9.2 },
+  { left: 25, size: 38, delay: 8.5 },
+];
+// Array of bubble configurations for water zones
+// Each bubble has: left position (% from left edge), size (px), and delay (seconds)
+// Add or remove bubbles by modifying this array
 
 // Selection Mode Coloring Controls
 export const SELECTION_START_COLOR = '#fff9e6'; // Start color for fill mode selection animation

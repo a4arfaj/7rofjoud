@@ -112,17 +112,12 @@ function FloatingCard({ visible, label, onStartRedPhase }: FloatingCardProps) {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`fixed px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-lg bg-green-500 text-white z-50 mx-2 ${
+      className={`relative px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-lg bg-green-500 text-white mx-auto my-4 max-w-sm w-full ${
         isDragging ? 'cursor-move opacity-80' : 'transition-all'
       }`}
       dir="rtl"
       style={{
-        ...(position
-          ? { left: `${position.x}px`, bottom: `${position.bottom}px`, transform: 'translateX(-50%)' }
-          : { left: '50%', bottom: '20px', transform: 'translateX(-50%)' }),
-        maxWidth: 'calc(100vw - 16px)',
-        width: 'auto',
-        maxHeight: 'calc(100vh - env(safe-area-inset-bottom) - 40px)',
+        maxWidth: 'min(420px, calc(100vw - 16px))',
         touchAction: 'none',
         userSelect: 'none',
       }}

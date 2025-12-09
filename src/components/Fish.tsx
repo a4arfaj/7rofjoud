@@ -13,10 +13,14 @@ type FishProps = {
 function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [angle, setAngle] = useState(0); // Direction in degrees (0 = right, 90 = down, 180 = left, 270 = up)
-  const [speed] = useState(0.8 + Math.random() * 0.4); // pixels per frame
+  const [speed] = useState(0.45 + Math.random() * 0.25); // pixels per frame (slower to avoid popping)
   const animationFrameRef = useRef<number | undefined>(undefined);
   const lastUpdateRef = useRef<number>(Date.now());
   const stateRef = useRef<{ position: Point; angle: number }>({ position: { x: 0, y: 0 }, angle: 0 });
+  const wanderAngleRef = useRef<number>(0); // Random wander offset
+  const nextWanderChangeRef = useRef<number>(Date.now());
+  const targetRef = useRef<Point | null>(null);
+  const nextTargetChangeRef = useRef<number>(Date.now());
 
   // Calculate water cell boundaries - memoize in ref
   const waterBoundsRef = useRef<Array<{
@@ -125,40 +129,144 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
     return ((bestDir % 360) + 360) % 360;
   };
 
+  const randomPointInTriangle = (a: Point, b: Point, c: Point): Point => {
+    let u = Math.random();
+    let v = Math.random();
+    if (u + v > 1) {
+      u = 1 - u;
+      v = 1 - v;
+    }
+    return {
+      x: a.x + u * (b.x - a.x) + v * (c.x - a.x),
+      y: a.y + u * (b.y - a.y) + v * (c.y - a.y),
+    };
+  };
+
+  const pickRandomZonePoint = (): Point | null => {
+    if (!zones.length) return null;
+    const z = zones[Math.floor(Math.random() * zones.length)];
+    if (z.corners.length >= 3) {
+      return randomPointInTriangle(z.corners[0], z.corners[1], z.corners[2]);
+    }
+    return {
+      x: (z.bounds.minX + z.bounds.maxX) / 2,
+      y: (z.bounds.minY + z.bounds.maxY) / 2,
+    };
+  };
+
+  // Pick a random point inside any water area (zones or cells)
+  const pickRandomWaterPoint = (): Point | null => {
+    const bounds = waterBoundsRef.current;
+    if (!bounds.length) return null;
+    
+    // Try to find a valid point
+    for (let i = 0; i < 20; i++) {
+      const b = bounds[Math.floor(Math.random() * bounds.length)];
+      // For triangular zones, use triangle sampling
+      if (b.corners.length === 3) {
+        const pt = randomPointInTriangle(b.corners[0], b.corners[1], b.corners[2]);
+        if (isPointInWater(pt)) return pt;
+      } else {
+        // For hex cells, sample within bounding box
+        const candidate = {
+          x: b.minX + Math.random() * (b.maxX - b.minX),
+          y: b.minY + Math.random() * (b.maxY - b.minY),
+        };
+        if (isPointInWater(candidate)) return candidate;
+      }
+    }
+    // Fallback to center of first bound
+    return bounds[0].center;
+  };
+
   // Initialize position - prefer zones if available
   useEffect(() => {
     if (waterBoundsRef.current.length === 0) return;
-    // Prefer spawning in zones, otherwise use first cell
-    const zoneBound = waterBoundsRef.current.find((_, idx) => idx >= cluster.length);
-    const spawnBound = zoneBound || waterBoundsRef.current[0];
+    const zonePoint = pickRandomZonePoint();
+    const initAngle = Math.random() * 360; // Random starting direction
+    
+    if (zonePoint) {
+      setPosition(zonePoint);
+      setAngle(initAngle);
+      stateRef.current = { position: zonePoint, angle: initAngle };
+      wanderAngleRef.current = (Math.random() - 0.5) * 40;
+      targetRef.current = pickRandomWaterPoint();
+      nextTargetChangeRef.current = Date.now() + 2000 + Math.random() * 3000;
+      return;
+    }
+
+    const spawnBound = waterBoundsRef.current[0];
     const initPos = {
       x: spawnBound.center.x,
       y: spawnBound.center.y,
     };
     setPosition(initPos);
-    setAngle(0); // Start facing right
-    stateRef.current = { position: initPos, angle: 0 };
+    setAngle(initAngle);
+    stateRef.current = { position: initPos, angle: initAngle };
+    wanderAngleRef.current = (Math.random() - 0.5) * 40;
+    targetRef.current = pickRandomWaterPoint();
+    nextTargetChangeRef.current = Date.now() + 2000 + Math.random() * 3000;
   }, [cluster, zones]);
 
   // Animation loop
   useEffect(() => {
     const animate = () => {
       const now = Date.now();
-      const deltaTime = Math.min((now - lastUpdateRef.current) / 16.67, 2); // Cap at 2 frames
+      const deltaTime = Math.min((now - lastUpdateRef.current) / 16.67, 1); // Cap at ~1 frame to avoid big jumps
       lastUpdateRef.current = now;
 
       const prevPos = stateRef.current.position;
       const prevAngle = stateRef.current.angle;
 
-      // Check if near boundary
-      const distToBoundary = getDistanceToBoundary(prevPos, prevAngle);
-      const threshold = size * 0.3;
-
-      let newAngle = prevAngle;
-      if (distToBoundary < threshold) {
-        // Find new direction
-        newAngle = findBestDirection(prevPos, prevAngle);
+      // Periodically update wander angle for natural swimming
+      if (now > nextWanderChangeRef.current) {
+        wanderAngleRef.current = (Math.random() - 0.5) * 40; // ±20 degrees wander
+        nextWanderChangeRef.current = now + 800 + Math.random() * 1200;
       }
+
+      // Periodically pick new target to swim towards
+      if (!targetRef.current || now > nextTargetChangeRef.current) {
+        targetRef.current = pickRandomWaterPoint();
+        nextTargetChangeRef.current = now + 3000 + Math.random() * 4000;
+      }
+
+      // Check distance to boundary in current direction
+      const distToBoundary = getDistanceToBoundary(prevPos, prevAngle);
+      const boundaryThreshold = size * 0.8;
+
+      let desiredAngle = prevAngle;
+
+      if (distToBoundary < boundaryThreshold) {
+        // Near boundary - find best escape direction
+        desiredAngle = findBestDirection(prevPos, prevAngle);
+      } else if (targetRef.current) {
+        // Swim towards target with wander offset
+        const dx = targetRef.current.x - prevPos.x;
+        const dy = targetRef.current.y - prevPos.y;
+        const angleToTarget = (Math.atan2(dy, dx) * 180) / Math.PI;
+        desiredAngle = angleToTarget + wanderAngleRef.current;
+
+        // If close to target, pick new one sooner
+        const distToTarget = Math.sqrt(dx * dx + dy * dy);
+        if (distToTarget < size * 1.5) {
+          targetRef.current = pickRandomWaterPoint();
+          nextTargetChangeRef.current = now + 2000 + Math.random() * 3000;
+        }
+      }
+
+      // Smooth rotation - fish turns gradually, not instantly
+      let angleDiff = desiredAngle - prevAngle;
+      if (angleDiff > 180) angleDiff -= 360;
+      if (angleDiff < -180) angleDiff += 360;
+      
+      const maxTurn = 1.8 * deltaTime; // degrees per frame
+      let newAngle = prevAngle;
+      if (Math.abs(angleDiff) > maxTurn) {
+        newAngle = prevAngle + Math.sign(angleDiff) * maxTurn;
+      } else {
+        newAngle = desiredAngle;
+      }
+      newAngle = ((newAngle % 360) + 360) % 360;
 
       // Move forward in current direction
       const rad = (newAngle * Math.PI) / 180;
@@ -169,26 +277,24 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
 
       // Clamp to water bounds
       if (!isPointInWater(newPos)) {
-        // If new position is outside, try to find valid position
-        const validPos = { ...prevPos };
-        let validAngle = newAngle;
-        for (let attempt = 0; attempt < 8; attempt++) {
-          const testAngle = (newAngle + attempt * 45) % 360;
-          const testRad = (testAngle * Math.PI) / 180;
-          const testPos = {
-            x: prevPos.x + Math.cos(testRad) * speed * deltaTime * 0.5,
-            y: prevPos.y + Math.sin(testRad) * speed * deltaTime * 0.5,
-          };
-          if (isPointInWater(testPos)) {
-            validPos.x = testPos.x;
-            validPos.y = testPos.y;
-            validAngle = testAngle;
-            break;
-          }
+        // If new position is outside, try an escape step toward safest direction
+        const escapeDir = findBestDirection(prevPos, prevAngle);
+        const escapeRad = (escapeDir * Math.PI) / 180;
+        const escapePos = {
+          x: prevPos.x + Math.cos(escapeRad) * speed * deltaTime * 0.3,
+          y: prevPos.y + Math.sin(escapeRad) * speed * deltaTime * 0.3,
+        };
+
+        if (isPointInWater(escapePos)) {
+          stateRef.current = { position: escapePos, angle: escapeDir };
+          setPosition(escapePos);
+          setAngle(escapeDir);
+        } else {
+          // Stay in place and turn away if we still can't find space
+          stateRef.current = { position: prevPos, angle: escapeDir };
+          setPosition(prevPos);
+          setAngle(escapeDir);
         }
-        stateRef.current = { position: validPos, angle: validAngle };
-        setPosition(validPos);
-        setAngle(validAngle);
       } else {
         stateRef.current = { position: newPos, angle: newAngle };
         setPosition(newPos);

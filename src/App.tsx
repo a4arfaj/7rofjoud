@@ -28,6 +28,13 @@ import {
   WATER_INNER_EDGE_POSITION,
   WATER_OUTER_EDGE_LENGTH,
   WATER_OUTER_EDGE_OFFSET,
+  WATER_LOWER_EDGE_POSITION,
+  WATER_POSITION_OFFSET_X,
+  WATER_POSITION_OFFSET_Y,
+  WATER_ZONE_BUBBLE_OFFSET_X,
+  WATER_ZONE_BUBBLE_OFFSET_Y,
+  WATER_ZONE_BUBBLE_START_TOP,
+  WATER_ZONE_BUBBLE_POSITIONS,
   FRAME_BORDER_WIDTH,
   FRAME_BORDER_COLOR,
   FRAME_BORDER_RADIUS,
@@ -1073,10 +1080,10 @@ function App() {
 
             {/* Zones overlay (green/blue) */}
               <div 
-                className="absolute z-[2] pointer-events-none"
+            className="absolute z-[2] pointer-events-none"
                 style={{
-                left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
-                  top: '50%',
+              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% + ${(isFireIce ? WATER_POSITION_OFFSET_X : 0)}%)`,
+              top: `calc(50% + ${(isFireIce ? WATER_POSITION_OFFSET_Y : 0)}%)`,
                   transform: 'translate(-50%, -50%)',
                   width: 'min(90vw, 60vh)',
                   height: 'min(90vw, 60vh)',
@@ -1097,6 +1104,15 @@ function App() {
                   const outerEdgeLeft = 50 - (outerLength / 2);
                   const waterFill = 'linear-gradient(180deg, #bbdefb 0%, #64b5f6 55%, #0d47a1 100%)';
 
+                  // Bubble positions for water zones (similar to cells method)
+                  // For top triangle: bubbles start near bottom (high %) and rise up
+                  // For bottom triangle: bubbles start near top (low %) and rise up
+                  const zoneBubbles = isFireIce ? WATER_ZONE_BUBBLE_POSITIONS.map(b => ({
+                    left: `${b.left + WATER_ZONE_BUBBLE_OFFSET_X}%`,
+                    size: `${b.size}px`,
+                    delay: `${b.delay}s`
+                  })) : [];
+
                   return (
                     <>
                       <div
@@ -1116,12 +1132,48 @@ function App() {
                         style={{
                           left: `${outerEdgeLeft}%`,
                           width: `${outerLength}%`,
-                          bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                          bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}% + ${(isFireIce ? WATER_LOWER_EDGE_POSITION : 0)}%)`,
                           height: `${innerWidth}%`,
                           background: isFireIce ? waterFill : zoneColors.green,
                           clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                         }}
                       />
+                      {/* Separate bubble container without clip-path so bubbles can be visible outside */}
+                      {isFireIce && (
+                        <div
+                          className="absolute"
+                          style={{
+                            left: `${outerEdgeLeft}%`,
+                            width: `${outerLength}%`,
+                            bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}% + ${(isFireIce ? WATER_LOWER_EDGE_POSITION : 0)}%)`,
+                            height: `${innerWidth}%`,
+                            overflow: 'visible',
+                            pointerEvents: 'none',
+                            zIndex: 3,
+                          }}
+                        >
+                          {zoneBubbles.map((bubble, idx) => (
+                            <div
+                              key={`bottom-zone-bubble-${idx}`}
+                              className="water-zone-bubble"
+                              style={{
+                                position: 'absolute',
+                                left: bubble.left,
+                                top: `${WATER_ZONE_BUBBLE_START_TOP - WATER_ZONE_BUBBLE_OFFSET_Y}%`, // Start near top of triangle (which is the bottom of the zone)
+                                width: bubble.size,
+                                height: bubble.size,
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                mixBlendMode: 'screen',
+                                animation: `water-zone-bubble-rise 12s ease-in-out infinite`,
+                                animationDelay: bubble.delay,
+                                pointerEvents: 'none',
+                                willChange: 'transform',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -1321,8 +1373,8 @@ function App() {
           <div 
             className="absolute z-[2] pointer-events-none"
             style={{
-              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
-              top: '50%',
+              left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% + ${(isFireIce ? WATER_POSITION_OFFSET_X : 0)}%)`,
+              top: `calc(50% + ${(isFireIce ? WATER_POSITION_OFFSET_Y : 0)}%)`,
               transform: 'translate(-50%, -50%)',
               width: 'min(90vw, calc(95vh - 100px))',
               height: 'min(90vw, calc(95vh - 100px))',
@@ -1343,6 +1395,15 @@ function App() {
               const outerEdgeLeft = 50 - (outerLength / 2);
               const waterFill = 'linear-gradient(180deg, #bbdefb 0%, #64b5f6 55%, #0d47a1 100%)';
 
+              // Bubble positions for water zones (similar to cells method)
+              // For top triangle: bubbles start near bottom (high %) and rise up
+              // For bottom triangle: bubbles start near top (low %) and rise up
+              const zoneBubbles = isFireIce ? WATER_ZONE_BUBBLE_POSITIONS.map(b => ({
+                left: `${b.left + WATER_ZONE_BUBBLE_OFFSET_X}%`,
+                size: `${b.size}px`,
+                delay: `${b.delay}s`
+              })) : [];
+
               return (
                 <>
                   <div
@@ -1362,12 +1423,48 @@ function App() {
                     style={{
                       left: `${outerEdgeLeft}%`,
                       width: `${outerLength}%`,
-                      bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                      bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}% + ${(isFireIce ? WATER_LOWER_EDGE_POSITION : 0)}%)`,
                       height: `${innerWidth}%`,
                       background: isFireIce ? waterFill : zoneColors.green,
                       clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                     }}
                   />
+                  {/* Separate bubble container without clip-path so bubbles can be visible outside */}
+                  {isFireIce && (
+                    <div
+                      className="absolute"
+                      style={{
+                        left: `${outerEdgeLeft}%`,
+                        width: `${outerLength}%`,
+                        bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}% + ${(isFireIce ? WATER_LOWER_EDGE_POSITION : 0)}%)`,
+                        height: `${innerWidth}%`,
+                        overflow: 'visible',
+                        pointerEvents: 'none',
+                        zIndex: 3,
+                      }}
+                    >
+                      {zoneBubbles.map((bubble, idx) => (
+                        <div
+                          key={`bottom-zone-bubble-${idx}`}
+                          className="water-zone-bubble"
+                          style={{
+                            position: 'absolute',
+                            left: bubble.left,
+                            top: `${WATER_ZONE_BUBBLE_START_TOP - WATER_ZONE_BUBBLE_OFFSET_Y}%`, // Start near top of triangle (which is the bottom of the zone)
+                            width: bubble.size,
+                            height: bubble.size,
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            mixBlendMode: 'screen',
+                            animation: `water-zone-bubble-rise 8s ease-in-out infinite`,
+                            animationDelay: bubble.delay,
+                            pointerEvents: 'none',
+                            willChange: 'transform',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               );
             })()}

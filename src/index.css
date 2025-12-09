@@ -155,28 +155,34 @@ body {
   100% { background-position: 0 40%, 30% 70%, 80% 90%; opacity: 0.6; }
 }
 
+@keyframes water-zone-bubble-rise {
+  0% { transform: translateY(20px); opacity: 0; }
+  10% { opacity: 0.7; }
+  90% { opacity: 0.7; }
+  100% { transform: translateY(-1000px); opacity: 0; }
+}
+
 .water-zone {
   position: relative;
   overflow: hidden;
+  /* Ensure pseudo-elements are clipped to the same polygon as the triangle */
+  clip-path: inherit;
+  -webkit-clip-path: inherit;
   background: linear-gradient(180deg, #bbdefb 0%, #64b5f6 50%, #0d47a1 100%);
   background-size: 120% 120%;
   animation: water-zone-shift 10s ease-in-out infinite;
 }
 
+.water-zone::before {
+  content: none;
+  background: none;
+  animation: none;
+}
+
 .water-zone::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  clip-path: inherit;
-  background-image:
-    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 55%),
-    radial-gradient(circle at 60% 40%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%),
-    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 55%);
-  background-repeat: no-repeat;
-  background-size: 40% 40%, 32% 32%, 34% 34%;
-  animation: water-zone-bubbles 5s ease-in-out infinite;
-  mix-blend-mode: screen;
-  pointer-events: none;
+  content: none;
+  background: none;
+  animation: none;
 }
 
 /* Bubble Pop Animation */
