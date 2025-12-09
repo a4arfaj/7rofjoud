@@ -24,6 +24,10 @@ import {
   GREEN_INNER_EDGE_POSITION,
   GREEN_OUTER_EDGE_LENGTH,
   GREEN_OUTER_EDGE_OFFSET,
+  WATER_INNER_EDGE_WIDTH,
+  WATER_INNER_EDGE_POSITION,
+  WATER_OUTER_EDGE_LENGTH,
+  WATER_OUTER_EDGE_OFFSET,
   FRAME_BORDER_WIDTH,
   FRAME_BORDER_COLOR,
   FRAME_BORDER_RADIUS,
@@ -88,7 +92,7 @@ function App() {
   const beeSchedulerTimeoutRef = useRef<number | null>(null);
   const randomSelectionTimeoutsRef = useRef<number[]>([]);
   const [isRandomSelecting, setIsRandomSelecting] = useState(false);
-
+  
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
   const [showPlayerList, setShowPlayerList] = useState(false);
@@ -109,7 +113,8 @@ function App() {
     );
     return match?.id ?? 'custom';
   }, [zoneColors]);
-
+  const isFireIce = activeThemeId === 'fireice';
+  
   // Reset Timer State
   const [resetTimer, setResetTimer] = useState<ResetTimer | null>(null);
   const resetTimerIntervalRef = useRef<number | null>(null);
@@ -117,10 +122,10 @@ function App() {
   const [showCard, setShowCard] = useState(false);
   // Red is allowed by default; becomes disallowed only when red ends naturally.
   const allowRedRef = useRef<boolean>(true);
-
+  
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
-
+  
   const hasUncoloredCells = useMemo(() => grid.some((cell) => cell.state === 0), [grid]);
 
   const clearRandomSelectionTimers = () => {
@@ -138,22 +143,22 @@ function App() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-
+      
       // Close settings if clicking outside
-      if (showSettings &&
-        settingsRef.current &&
-        !settingsRef.current.contains(target) &&
-        settingsButtonRef.current &&
-        !settingsButtonRef.current.contains(target)) {
+      if (showSettings && 
+          settingsRef.current && 
+          !settingsRef.current.contains(target) &&
+          settingsButtonRef.current &&
+          !settingsButtonRef.current.contains(target)) {
         setShowSettings(false);
       }
-
+      
       // Close player list if clicking outside
-      if (showPlayerList &&
-        playerListRef.current &&
-        !playerListRef.current.contains(target) &&
-        playerListButtonRef.current &&
-        !playerListButtonRef.current.contains(target)) {
+      if (showPlayerList && 
+          playerListRef.current && 
+          !playerListRef.current.contains(target) &&
+          playerListButtonRef.current &&
+          !playerListButtonRef.current.contains(target)) {
         setShowPlayerList(false);
       }
     };
@@ -184,16 +189,16 @@ function App() {
       const audioContext = await getAudioContext();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-
+      
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-
+      
       oscillator.frequency.value = 800; // Buzzer frequency
       oscillator.type = 'square';
-
+      
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-
+      
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
@@ -204,25 +209,25 @@ function App() {
   const playWinSound = async () => {
     try {
       const audioContext = await getAudioContext();
-
+      
       // Play a sequence of notes for win sound
       const notes = [523.25, 659.25, 783.99]; // C, E, G (C major chord)
       const noteDuration = 0.15;
-
+      
       notes.forEach((freq, index) => {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-
+        
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-
+        
         oscillator.frequency.value = freq;
         oscillator.type = 'sine';
-
+        
         const startTime = audioContext.currentTime + (index * noteDuration);
         gainNode.gain.setValueAtTime(0.3, startTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + noteDuration);
-
+        
         oscillator.start(startTime);
         oscillator.stop(startTime + noteDuration);
       });
@@ -236,18 +241,18 @@ function App() {
       const audioContext = await getAudioContext();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-
+      
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-
+      
       // Lower pitch, descending tone for "times up"
       oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
       oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.5);
       oscillator.type = 'sawtooth';
-
+      
       gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
+      
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
     } catch (error) {
@@ -270,7 +275,7 @@ function App() {
   const handleJoinRoom = (id: string, creator: boolean, name: string) => {
     // Clear any previous errors
     setRoomError('');
-
+    
     // Assign team randomly for everyone
     const playerTeam = Math.random() > 0.5 ? 'green' : 'orange';
 
@@ -283,9 +288,9 @@ function App() {
       const newGrid = generateHexGrid(ARABIC_LETTERS);
       console.log("Creating room:", id, "with grid:", newGrid.length, "cells");
       setGrid(newGrid); // Set local state immediately
-
+      
       const initialPlayer = { name, team: playerTeam };
-
+      
       set(ref(db, `rooms/${id}`), {
         grid: newGrid,
         winner: null,
@@ -299,19 +304,19 @@ function App() {
           gameSettings: { showBee: true, showBubbles: true }
         }
       })
-        .then(() => {
-          console.log("Room created successfully in Firebase:", id);
-        })
-        .catch((err: any) => {
-          console.error("Firebase Error (Create):", err);
-          console.error("Error code:", err.code);
-          console.error("Error message:", err.message);
-          setRoomError("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
-          // Reset room state on error
-          setRoomId(null);
-          setIsCreator(false);
-          setPlayerName('');
-        });
+      .then(() => {
+        console.log("Room created successfully in Firebase:", id);
+      })
+      .catch((err: any) => {
+        console.error("Firebase Error (Create):", err);
+        console.error("Error code:", err.code);
+        console.error("Error message:", err.message);
+        setRoomError("فشل في إنشاء الغرفة. تحقق من قاعدة البيانات والقواعد في Firebase Console.");
+        // Reset room state on error
+        setRoomId(null);
+        setIsCreator(false);
+        setPlayerName('');
+      });
     } else {
       // Joiner: verify room exists before joining
       const roomRef = ref(db, `rooms/${id}`);
@@ -346,7 +351,7 @@ function App() {
     console.log("Setting up Firebase sync for room:", roomId);
     const roomRef = ref(db, `rooms/${roomId}`);
     const playerRef = ref(db, `rooms/${roomId}/players/${playerName}`);
-
+    
     // Set up onDisconnect to remove player when they leave
     const disconnectRef = onDisconnect(playerRef);
     disconnectRef.remove().then(() => {
@@ -354,11 +359,11 @@ function App() {
     }).catch((err: any) => {
       console.error("Failed to set up onDisconnect:", err);
     });
-
+    
     const unsubscribe = onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase data received:", data);
-
+      
       if (data) {
         if (data.grid && Array.isArray(data.grid)) {
           setGrid(data.grid);
@@ -367,7 +372,7 @@ function App() {
         if (data.buzzer) {
           const newBuzzer = data.buzzer;
           const prevBuzzer = prevBuzzerRef.current;
-
+          
           // Detect when buzzer becomes active
           if (newBuzzer.active && !prevBuzzer.active) {
             // Only the winner hears the win sound; others silent
@@ -375,7 +380,7 @@ function App() {
               playWinSound();
             }
           }
-
+          
           prevBuzzerRef.current = newBuzzer;
           setBuzzer(newBuzzer);
         }
@@ -385,7 +390,7 @@ function App() {
           // Handle both formats: object with name keys or array-like with auto-keys
           let playerList: Player[] = [];
           if (typeof data.players === 'object') {
-            playerList = Object.values(data.players).filter((p: any) =>
+            playerList = Object.values(data.players).filter((p: any) => 
               p && typeof p === 'object' && p.name && p.team
             ) as Player[];
           }
@@ -397,7 +402,7 @@ function App() {
         } else {
           setSelectionMode('fill');
         }
-
+        
         // Sync settings
         if (data.settings) {
           if (data.settings.zoneColors) setZoneColors(data.settings.zoneColors);
@@ -482,11 +487,11 @@ function App() {
       update(ref(db, `rooms/${roomId}`), {
         grid: newGrid
       })
-        .catch((err: any) => {
-          console.error("Firebase Error (Update):", err);
-          // Still update local state even if Firebase fails
-          setGrid(newGrid);
-        });
+      .catch((err: any) => {
+        console.error("Firebase Error (Update):", err);
+        // Still update local state even if Firebase fails
+        setGrid(newGrid);
+      });
     } else {
       // Local play fallback
       setGrid(newGrid);
@@ -521,7 +526,7 @@ function App() {
   // Host Bee Logic
   useEffect(() => {
     if (!isCreator || !roomId) return;
-
+    
     // Clear existing target if bee is disabled
     if (!gameSettings.showBee) {
       if (activeBeeCell) {
@@ -530,21 +535,21 @@ function App() {
       }
       return;
     }
-
+    
     const scheduleNextBee = () => {
       // Random interval between 70-80 seconds
       const intervalMs = 70000 + Math.random() * 10000; // 70-80 seconds
-
+      
       beeSchedulerTimeoutRef.current = window.setTimeout(() => {
         // 50% chance that bee comes at all
         if (Math.random() < 0.5) {
           setGrid(currentGrid => {
             // Pick Real Target (Random Cell)
             const realTarget = currentGrid[Math.floor(Math.random() * currentGrid.length)];
-
+            
             // 30% chance to fake a cell (fake-out)
             const shouldFake = Math.random() < 0.3;
-
+            
             if (shouldFake && currentGrid.length > 1) {
               // Fake-out path: fly to fake target first, then redirect
               // 1. Pick Fake Target (different from real)
@@ -568,16 +573,16 @@ function App() {
                 const minY = Math.min(...ys);
                 const maxY = Math.max(...ys);
                 const padding = HEX_SIZE * 1.6;
-
+                
                 // Bee start pos (from Bee.tsx)
                 const startX = (minX - padding) - 100;
                 const viewBoxHeight = (maxY - minY) + padding * 2;
                 const startY = (minY - padding) + viewBoxHeight / 2;
-
+                
                 const targetPixel = hexToPixel(fakeTarget, HEX_SIZE);
                 const dist = Math.sqrt(Math.pow(targetPixel.x - startX, 2) + Math.pow(targetPixel.y - startY, 2));
                 const flightDuration = (dist / 80) * 1000; // 80px/s speed
-
+                
                 // Switch at 50-55% of the way (well before landing)
                 // Ensure we switch early enough so bee never lands on fake target
                 // Calculate switch time: use 50% of flight duration, but cap it to ensure we're always before landing
@@ -592,17 +597,17 @@ function App() {
                 // Use the calculated switch time with a minimum to ensure it always executes
                 const finalSwitchTime = Math.max(500, switchTime);
                 setTimeout(() => {
-                  update(ref(db, `rooms/${roomId}`), {
-                    beeTarget: { id: realTarget.id, timestamp: Date.now() }
-                  });
+                   update(ref(db, `rooms/${roomId}`), {
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                   });
                 }, finalSwitchTime);
               } else {
-                // Fallback if grid empty
-                setTimeout(() => {
-                  update(ref(db, `rooms/${roomId}`), {
-                    beeTarget: { id: realTarget.id, timestamp: Date.now() }
-                  });
-                }, 2500);
+                 // Fallback if grid empty
+                 setTimeout(() => {
+                   update(ref(db, `rooms/${roomId}`), {
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                   });
+                 }, 2500);
               }
             } else {
               // Direct path: fly straight to real target (no fake-out)
@@ -615,7 +620,7 @@ function App() {
             return currentGrid;
           });
         }
-
+        
         // Schedule next bee (recursive)
         scheduleNextBee();
       }, intervalMs);
@@ -623,7 +628,7 @@ function App() {
 
     // Start first bee after initial delay
     scheduleNextBee();
-
+    
     return () => {
       if (beeSchedulerTimeoutRef.current !== null) {
         clearTimeout(beeSchedulerTimeoutRef.current);
@@ -636,19 +641,19 @@ function App() {
     if (isCreator && activeBeeCell && roomId) {
       const currentCell = grid.find(c => c.id === activeBeeCell.id);
       if (currentCell) {
-        const index = grid.findIndex(c => c.id === activeBeeCell.id);
-        if (index !== -1) {
-          if (currentCell.state === 2 || currentCell.state === 3) {
-            // If colored, clear it
-            update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
-          } else {
-            // If uncolored, 1% chance to color randomly
-            if (Math.random() < 0.01) {
-              const newState = Math.random() < 0.5 ? 2 : 3; // orange or green
-              update(ref(db, `rooms/${roomId}/grid/${index}`), { state: newState });
-            }
-          }
-        }
+         const index = grid.findIndex(c => c.id === activeBeeCell.id);
+         if (index !== -1) {
+           if (currentCell.state === 2 || currentCell.state === 3) {
+             // If colored, clear it
+             update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
+           } else {
+             // If uncolored, 1% chance to color randomly
+             if (Math.random() < 0.01) {
+               const newState = Math.random() < 0.5 ? 2 : 3; // orange or green
+               update(ref(db, `rooms/${roomId}/grid/${index}`), { state: newState });
+             }
+           }
+         }
       }
     }
   };
@@ -676,7 +681,7 @@ function App() {
 
         const randomPlayer = players[Math.floor(Math.random() * players.length)];
         const size = 60 + Math.random() * 40;
-
+        
         const newBubble: Omit<BubbleData, 'id'> = {
           name: randomPlayer.name,
           x: 10 + Math.random() * 80,
@@ -700,7 +705,7 @@ function App() {
       get(ref(db, `rooms/${roomId}/bubbles`)).then((snapshot) => {
         const currentBubbles = snapshot.val();
         if (!currentBubbles) return;
-
+        
         Object.entries(currentBubbles).forEach(([key, value]: [string, any]) => {
           const b = value as BubbleData;
           if ((b.popped && b.popTime && now - b.popTime > 5000) || (now - b.spawnTime > 60000)) {
@@ -736,7 +741,7 @@ function App() {
 
   const handleSettingChange = (key: string, value: any) => {
     if (!isCreator || !roomId) return;
-
+    
     if (key === 'theme') {
       const selectedTheme = COLOR_THEMES.find(t => t.id === value);
       if (selectedTheme) {
@@ -995,15 +1000,15 @@ function App() {
                 </button>
               </div>
               <div className="flex gap-2">
-                <button
+                        <button
                   onClick={handleShuffleRequest}
                   className="bg-white/20 backdrop-blur hover:bg-white/30 text-white px-4 py-2 rounded-lg shadow transition-colors font-bold"
                   title="خلط الحروف"
                   aria-label="خلط الحروف"
                 >
                   🔀
-                </button>
-                <button
+                        </button>
+                        <button
                   onClick={handleRandomLetterSelect}
                   disabled={isRandomSelecting || !hasUncoloredCells}
                   className={`px-4 py-2 rounded-lg shadow font-bold transition-colors backdrop-blur ${
@@ -1015,8 +1020,8 @@ function App() {
                   aria-label="اختيار حرف عشوائي من الخلايا غير الملونة"
                 >
                   {isRandomSelecting ? '⏳' : '🎲'}
-                </button>
-              </div>
+                        </button>
+                    </div>
 
               <SettingsMenu
                 show={showSettings}
@@ -1060,78 +1065,84 @@ function App() {
       {/* Guest Layout: Honeycomb/Zones in Top Frame, Buzzer in Bottom Frame with Padding */}
       {!isCreator ? (
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#5e35b1]">
-          {/* Top Frame: Game Board & Zones */}
-          <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
-            {/* Bubbles Overlay */}
-            <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
-
+           {/* Top Frame: Game Board & Zones */}
+           <div className="flex-grow relative w-full flex items-center justify-center overflow-hidden">
+             {/* Bubbles Overlay */}
+             <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
+             
 
             {/* Zones overlay (green/blue) */}
-            <div
-              className="absolute z-[2] pointer-events-none"
-              style={{
+              <div 
+                className="absolute z-[2] pointer-events-none"
+                style={{
                 left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 'min(90vw, 60vh)',
-                height: 'min(90vw, 60vh)',
-                maxWidth: '800px',
-                maxHeight: '800px',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 'min(90vw, 60vh)',
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
                 aspectRatio: '1 / 1',
                 filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.25))'
-              }}
-            >
+                }}
+              >
                 {/* Green zones at top and bottom - aligned to grid edges */}
                 {/* GREEN_INNER_EDGE_POSITION moves inner edge vertically (positive = toward center) */}
                 {/* GREEN_OUTER_EDGE_LENGTH controls the horizontal length of the outer edge */}
                 {(() => {
-                  const outerEdgeLeft = 50 - (GREEN_OUTER_EDGE_LENGTH / 2);
+                  const innerWidth = isFireIce ? WATER_INNER_EDGE_WIDTH : GREEN_INNER_EDGE_WIDTH;
+                  const innerPos = isFireIce ? WATER_INNER_EDGE_POSITION : GREEN_INNER_EDGE_POSITION;
+                  const outerLength = isFireIce ? WATER_OUTER_EDGE_LENGTH : GREEN_OUTER_EDGE_LENGTH;
+                  const outerOffset = isFireIce ? WATER_OUTER_EDGE_OFFSET : GREEN_OUTER_EDGE_OFFSET;
+                  const outerEdgeLeft = 50 - (outerLength / 2);
+                  const waterFill = 'linear-gradient(180deg, #bbdefb 0%, #64b5f6 55%, #0d47a1 100%)';
+
                   return (
                     <>
                       <div
-                        className="absolute"
+                        className={`absolute ${isFireIce ? 'water-zone' : ''}`}
                         style={{
                           left: `${outerEdgeLeft}%`,
-                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                          top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: zoneColors.green,
+                          width: `${outerLength}%`,
+                          top: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                          height: `${innerWidth}%`,
+                          background: isFireIce ? waterFill : zoneColors.green,
                           clipPath: `polygon(0 0, 50% 100%, 100% 0)`
                         }}
                       />
 
                       <div
-                        className="absolute"
+                        className={`absolute ${isFireIce ? 'water-zone' : ''}`}
                         style={{
                           left: `${outerEdgeLeft}%`,
-                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                          bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                          backgroundColor: zoneColors.green,
+                          width: `${outerLength}%`,
+                          bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                          height: `${innerWidth}%`,
+                          background: isFireIce ? waterFill : zoneColors.green,
                           clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
                         }}
                       />
                     </>
                   );
                 })()}
-            </div>
+              </div>
 
             {/* Zones overlay (orange/red) */}
-            <div
-              className="absolute z-[5] pointer-events-none"
-              style={{
-                // Position to match grid container: centered, min(90vw, 60vh) with max 800px
-                left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 'min(90vw, 60vh)',
-                height: 'min(90vw, 60vh)',
-                maxWidth: '800px',
-                maxHeight: '800px',
+              <div 
+                className="absolute z-[5] pointer-events-none"
+                style={{
+                  // Position to match grid container: centered, min(90vw, 60vh) with max 800px
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 'min(90vw, 60vh)',
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
                 aspectRatio: '1 / 1',
                 filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.3))'
-              }}
-            >
+                }}
+              >
                 {(() => {
                   // Inner edges are positioned relative to grid container (100% = full grid height)
                   // ORANGE_INNER_EDGE_LENGTH is % of grid height
@@ -1140,7 +1151,7 @@ function App() {
                   const innerEdgeBottom = 50 + (ORANGE_INNER_EDGE_LENGTH / 2);
                   // ORANGE_OUTER_EDGE_LENGTH controls the vertical length of the outer edge
                   const outerEdgeTop = 50 - (ORANGE_OUTER_EDGE_LENGTH / 2);
-
+                  
                   return (
                     <>
                       {/* Left orange zone */}
@@ -1172,142 +1183,142 @@ function App() {
                     </>
                   );
                 })()}
-            </div>
-
-            {/* Game container that scales uniformly - scaled down slightly for guest view */}
-            <div
-              className="relative z-10"
-              style={{
-                left: `${HONEYCOMB_HORIZONTAL_POSITION}%`,
-                width: 'min(90vw, 60vh)',
-                height: 'min(90vw, 60vh)',
-                maxWidth: '800px',
-                maxHeight: '800px',
-                aspectRatio: '1 / 1',
-                overflow: 'visible'
-              }}
-            >
-              {/* Real frame around zones for guest view - extends to cover outer edges */}
-              {(() => {
-                const baseSize = 'min(90vw, 60vh)';
-                const baseMaxSize = '800px';
-
-                return (
-                  <div
-                    className="absolute z-[6] pointer-events-none"
-                    style={{
-                      left: `calc(50% + ${FRAME_POSITION_OFFSET_X}%)`,
-                      top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
-                      transform: 'translate(-50%, -50%)',
-                      width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
-                      height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
-                      maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 8}px)`,
-                      maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 8}px)`,
-                      border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
-                      borderRadius: `${FRAME_BORDER_RADIUS}px`,
-                      boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
-                    }}
-                  />
-                );
-              })()}
-              {/* Hex grid on top */}
-              <div className="absolute inset-0 flex items-center justify-center" style={boardGlowStyle}>
-                <HexGrid
-                  grid={grid}
-                  size={HEX_SIZE}
-                  onCellClick={handleCellClick}
-                  selectionMode={selectionMode}
-                  orangeColor={zoneColors.orange}
-                  greenColor={zoneColors.green}
-                  themeId={activeThemeId}
-                />
-                {activeBeeCell && (
-                  <Bee
-                    targetCell={activeBeeCell}
-                    onReachTarget={handleBeeReachTarget}
-                    onFinish={handleBeeFinish}
-                    hexSize={HEX_SIZE}
-                    grid={grid}
-                    startTime={beeStartTime || undefined}
-                  />
-                )}
-                <div className="absolute inset-0 z-20 cursor-default" />
               </div>
-            </div>
-          </div>
 
-          {/* Bottom Frame: Buzzer */}
-          <div className="flex-shrink-0 w-full bg-[#5e35b1] pb-8 pt-4 flex justify-center items-center z-50 border-t-4 border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
-            <button
-              onClick={handleBuzzerPress}
-              disabled={buzzer.active}
-              className={`
+              {/* Game container that scales uniformly - scaled down slightly for guest view */}
+              <div 
+                className="relative z-10"
+                style={{
+                  left: `${HONEYCOMB_HORIZONTAL_POSITION}%`,
+                width: 'min(90vw, 60vh)',
+                  height: 'min(90vw, 60vh)',
+                  maxWidth: '800px',
+                  maxHeight: '800px',
+                  aspectRatio: '1 / 1',
+                  overflow: 'visible'
+                }}
+              >
+                {/* Real frame around zones for guest view - extends to cover outer edges */}
+                {(() => {
+                  const baseSize = 'min(90vw, 60vh)';
+                  const baseMaxSize = '800px';
+                  
+                  return (
+                    <div 
+                      className="absolute z-[6] pointer-events-none"
+                      style={{
+                        left: `calc(50% + ${FRAME_POSITION_OFFSET_X}%)`,
+                        top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
+                        transform: 'translate(-50%, -50%)',
+                        width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
+                        height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
+                        maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 8}px)`,
+                        maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 8}px)`,
+                        border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
+                        borderRadius: `${FRAME_BORDER_RADIUS}px`,
+                        boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+                      }}
+                    />
+                  );
+                })()}
+                {/* Hex grid on top */}
+              <div className="absolute inset-0 flex items-center justify-center" style={boardGlowStyle}>
+                  <HexGrid 
+                    grid={grid} 
+                    size={HEX_SIZE} 
+                    onCellClick={handleCellClick}
+                    selectionMode={selectionMode}
+                    orangeColor={zoneColors.orange}
+                    greenColor={zoneColors.green}
+                    themeId={activeThemeId}
+                  />
+                  {activeBeeCell && (
+                    <Bee 
+                      targetCell={activeBeeCell} 
+                      onReachTarget={handleBeeReachTarget} 
+                      onFinish={handleBeeFinish} 
+                      hexSize={HEX_SIZE}
+                      grid={grid}
+                      startTime={beeStartTime || undefined}
+                    />
+                  )}
+                  <div className="absolute inset-0 z-20 cursor-default" />
+                </div>
+              </div>
+           </div>
+
+           {/* Bottom Frame: Buzzer */}
+           <div className="flex-shrink-0 w-full bg-[#5e35b1] pb-8 pt-4 flex justify-center items-center z-50 border-t-4 border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+              <button
+                onClick={handleBuzzerPress}
+                disabled={buzzer.active}
+                className={`
                   w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
-                  ${buzzer.active
-                  ? (buzzer.playerName === playerName
-                    ? 'bg-green-500 border-green-300 scale-110' // You won
-                    : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
-                  : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
-                }
+                  ${buzzer.active 
+                    ? (buzzer.playerName === playerName 
+                        ? 'bg-green-500 border-green-300 scale-110' // You won
+                        : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
+                    : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
+                  }
                 `}
-            >
-              <span className="text-white font-black text-2xl drop-shadow-md">
-                {buzzer.active
-                  ? (buzzer.playerName === playerName ? 'أنت' : buzzer.playerName)
-                  : 'اضغط'}
-              </span>
-            </button>
-          </div>
+              >
+                <span className="text-white font-black text-2xl drop-shadow-md">
+                  {buzzer.active 
+                    ? (buzzer.playerName === playerName ? 'أنت' : buzzer.playerName)
+                    : 'اضغط'}
+                </span>
+        </button>
+           </div>
         </div>
       ) : (
-        /* Host UI: Full Screen Game Board */
-        <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]" style={{
-          paddingTop: 'max(80px, env(safe-area-inset-top))',
-          paddingBottom: showCard ? '140px' : '20px',
-          paddingLeft: 'max(env(safe-area-inset-left), 0px)',
-          paddingRight: 'max(env(safe-area-inset-right), 0px)'
-        }}>
-          {/* Bubbles Overlay */}
-          <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
-
-          {/* Game container that scales uniformly */}
-          <div
-            className="relative z-10"
-            style={{
-              width: 'min(90vw, calc(95vh - 100px))',
-              height: 'min(90vw, calc(95vh - 100px))',
-              maxWidth: '900px',
-              maxHeight: '900px',
-              aspectRatio: '1 / 1',
-              overflow: 'visible'
-            }}
-          >
-            {/* Real frame around zones - extends to cover outer edges */}
-            {(() => {
+      /* Host UI: Full Screen Game Board */
+      <div className="relative w-full h-screen flex items-center justify-center bg-[#5e35b1]" style={{ 
+        paddingTop: 'max(80px, env(safe-area-inset-top))',
+        paddingBottom: showCard ? '140px' : '20px',
+        paddingLeft: 'max(env(safe-area-inset-left), 0px)',
+        paddingRight: 'max(env(safe-area-inset-right), 0px)'
+      }}>
+        {/* Bubbles Overlay */}
+        <Bubbles bubbles={bubbles} onPop={handleBubblePop} />
+        
+        {/* Game container that scales uniformly */}
+        <div 
+          className="relative z-10"
+          style={{
+            width: 'min(90vw, calc(95vh - 100px))',
+            height: 'min(90vw, calc(95vh - 100px))',
+            maxWidth: '900px',
+            maxHeight: '900px',
+            aspectRatio: '1 / 1',
+            overflow: 'visible'
+          }}
+        >
+          {/* Real frame around zones - extends to cover outer edges */}
+          {(() => {
               const baseSize = 'min(90vw, calc(95vh - 100px))';
-              const baseMaxSize = '900px';
-
-              return (
-                <div
-                  className="absolute z-[6] pointer-events-none"
-                  style={{
-                    left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% + ${FRAME_POSITION_OFFSET_X}%)`,
-                    top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
-                    transform: 'translate(-50%, -50%)',
-                    width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
-                    height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
-                    maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 9}px)`,
-                    maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 9}px)`,
-                    border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
-                    borderRadius: `${FRAME_BORDER_RADIUS}px`,
-                    boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
-                  }}
-                />
-              );
-            })()}
+            const baseMaxSize = '900px';
+            
+            return (
+              <div 
+                className="absolute z-[6] pointer-events-none"
+                style={{
+                  left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}% + ${FRAME_POSITION_OFFSET_X}%)`,
+                  top: `calc(50% + ${FRAME_POSITION_OFFSET_Y}%)`,
+                  transform: 'translate(-50%, -50%)',
+                  width: `calc(${baseSize} + ${FRAME_PADDING_HORIZONTAL}%)`,
+                  height: `calc(${baseSize} + ${FRAME_PADDING_VERTICAL}%)`,
+                  maxWidth: `calc(${baseMaxSize} + ${FRAME_PADDING_HORIZONTAL * 9}px)`,
+                  maxHeight: `calc(${baseMaxSize} + ${FRAME_PADDING_VERTICAL * 9}px)`,
+                  border: `${FRAME_BORDER_WIDTH}px solid ${FRAME_BORDER_COLOR}`,
+                  borderRadius: `${FRAME_BORDER_RADIUS}px`,
+                  boxShadow: 'inset 0 0 40px rgba(255, 255, 255, 0.1), 0 0 60px rgba(0, 0, 0, 0.5)'
+                }}
+              />
+            );
+          })()}
 
           {/* Zones overlay (green/blue) */}
-          <div
+          <div 
             className="absolute z-[2] pointer-events-none"
             style={{
               left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
@@ -1321,43 +1332,49 @@ function App() {
               filter: 'drop-shadow(0 0 12px rgba(0,0,0,0.25))'
             }}
           >
-                {/* Green zones at top and bottom - aligned to grid edges */}
-                {/* GREEN_INNER_EDGE_POSITION moves inner edge vertically (positive = toward center) */}
-                {/* GREEN_OUTER_EDGE_LENGTH controls the horizontal length of the outer edge */}
-                {(() => {
-                  const outerEdgeLeft = 50 - (GREEN_OUTER_EDGE_LENGTH / 2);
-                  return (
-                    <>
+            {/* Green zones at top and bottom - aligned to grid edges */}
+            {/* GREEN_INNER_EDGE_POSITION moves inner edge vertically (positive = toward center) */}
+            {/* GREEN_OUTER_EDGE_LENGTH controls the horizontal length of the outer edge */}
+            {(() => {
+              const innerWidth = isFireIce ? WATER_INNER_EDGE_WIDTH : GREEN_INNER_EDGE_WIDTH;
+              const innerPos = isFireIce ? WATER_INNER_EDGE_POSITION : GREEN_INNER_EDGE_POSITION;
+              const outerLength = isFireIce ? WATER_OUTER_EDGE_LENGTH : GREEN_OUTER_EDGE_LENGTH;
+              const outerOffset = isFireIce ? WATER_OUTER_EDGE_OFFSET : GREEN_OUTER_EDGE_OFFSET;
+              const outerEdgeLeft = 50 - (outerLength / 2);
+              const waterFill = 'linear-gradient(180deg, #bbdefb 0%, #64b5f6 55%, #0d47a1 100%)';
+
+              return (
+                <>
                   <div
-                    className="absolute"
-                        style={{
-                          left: `${outerEdgeLeft}%`,
-                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                          top: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                      backgroundColor: zoneColors.green,
-                          clipPath: `polygon(0 0, 50% 100%, 100% 0)`
-                        }}
-                      />
+                    className={`absolute ${isFireIce ? 'water-zone' : ''}`}
+                    style={{
+                      left: `${outerEdgeLeft}%`,
+                      width: `${outerLength}%`,
+                      top: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                      height: `${innerWidth}%`,
+                      background: isFireIce ? waterFill : zoneColors.green,
+                      clipPath: `polygon(0 0, 50% 100%, 100% 0)`
+                    }}
+                  />
 
                   <div
-                    className="absolute"
-                        style={{
-                          left: `${outerEdgeLeft}%`,
-                          width: `${GREEN_OUTER_EDGE_LENGTH}%`,
-                          bottom: `calc(-${GREEN_INNER_EDGE_WIDTH}% - ${GREEN_OUTER_EDGE_OFFSET}% + ${GREEN_INNER_EDGE_POSITION}%)`,
-                          height: `${GREEN_INNER_EDGE_WIDTH}%`,
-                      backgroundColor: zoneColors.green,
-                          clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
-                        }}
-                      />
-                    </>
-                  );
-                })()}
+                    className={`absolute ${isFireIce ? 'water-zone' : ''}`}
+                    style={{
+                      left: `${outerEdgeLeft}%`,
+                      width: `${outerLength}%`,
+                      bottom: `calc(-${innerWidth}% - ${outerOffset}% + ${innerPos}%)`,
+                      height: `${innerWidth}%`,
+                      background: isFireIce ? waterFill : zoneColors.green,
+                      clipPath: `polygon(0 100%, 50% 0, 100% 100%)`
+                    }}
+                  />
+                </>
+              );
+            })()}
           </div>
-
+          
           {/* Zones overlay (orange/red) */}
-          <div className="absolute z-[5]" style={{
+          <div className="absolute z-[5]" style={{ 
             left: `calc(50% + ${HONEYCOMB_HORIZONTAL_POSITION}%)`,
             top: '50%',
             transform: 'translate(-50%, -50%)',
@@ -1379,63 +1396,63 @@ function App() {
                   const innerEdgeBottom = 50 + (ORANGE_INNER_EDGE_LENGTH / 2);
                   // ORANGE_OUTER_EDGE_LENGTH controls the vertical length of the outer edge
                   const outerEdgeTop = 50 - (ORANGE_OUTER_EDGE_LENGTH / 2);
-                  return (
-                    <>
-                      {/* Left orange zone */}
-                      <div
-                        className="absolute"
-                        style={{
-                          left: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
-                          top: `${outerEdgeTop}%`,
-                          height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
-                          width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
-                          backgroundColor: zoneColors.orange,
-                          clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
-                        }}
-                      />
+              return (
+                <>
+                  {/* Left orange zone */}
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                      top: `${outerEdgeTop}%`,
+                      height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                      width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
+                      backgroundColor: zoneColors.orange,
+                      clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`
+                    }}
+                  />
 
-                      {/* Right orange zone */}
-                      <div
-                        className="absolute"
-                        style={{
-                          right: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
-                          top: `${outerEdgeTop}%`,
-                          height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
-                          width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
-                          backgroundColor: zoneColors.orange,
-                          clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
-                          transform: 'scaleX(-1)'
-                        }}
-                      />
-                    </>
-                  );
-                })()}
+                  {/* Right orange zone */}
+                  <div
+                    className="absolute"
+                    style={{
+                      right: `calc(-${ORANGE_INNER_EDGE_WIDTH}% - ${ORANGE_OUTER_EDGE_OFFSET}% + ${ORANGE_INNER_EDGE_POSITION}%)`,
+                      top: `${outerEdgeTop}%`,
+                      height: `${ORANGE_OUTER_EDGE_LENGTH}%`,
+                      width: `calc(${ORANGE_INNER_EDGE_WIDTH}% + ${ORANGE_OUTER_EDGE_OFFSET}%)`,
+                      backgroundColor: zoneColors.orange,
+                      clipPath: `polygon(0 0, 100% ${innerEdgeTop}%, 100% ${innerEdgeBottom}%, 0 100%)`,
+                      transform: 'scaleX(-1)'
+                    }}
+                  />
+                </>
+              );
+            })()}
           </div>
-
-            {/* Hex grid on top */}
+          
+          {/* Hex grid on top */}
             <div className="absolute inset-0 flex items-center justify-center z-10" style={boardGlowStyle}>
-              <HexGrid
+            <HexGrid 
+              grid={grid} 
+              size={HEX_SIZE} 
+              onCellClick={handleCellClick}
+              selectionMode={selectionMode}
+              orangeColor={zoneColors.orange}
+              greenColor={zoneColors.green}
+              themeId={activeThemeId}
+            />
+            {activeBeeCell && (
+              <Bee 
+                targetCell={activeBeeCell} 
+                onReachTarget={handleBeeReachTarget} 
+                onFinish={handleBeeFinish} 
+                hexSize={HEX_SIZE}
                 grid={grid}
-                size={HEX_SIZE}
-                onCellClick={handleCellClick}
-                selectionMode={selectionMode}
-                orangeColor={zoneColors.orange}
-                greenColor={zoneColors.green}
-                themeId={activeThemeId}
+                startTime={beeStartTime || undefined}
               />
-              {activeBeeCell && (
-                <Bee
-                  targetCell={activeBeeCell}
-                  onReachTarget={handleBeeReachTarget}
-                  onFinish={handleBeeFinish}
-                  hexSize={HEX_SIZE}
-                  grid={grid}
-                  startTime={beeStartTime || undefined}
-                />
-              )}
-            </div>
+            )}
           </div>
         </div>
+      </div>
       )}
     </div>
   );

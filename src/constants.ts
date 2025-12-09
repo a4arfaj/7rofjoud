@@ -45,6 +45,13 @@ export const GREEN_OUTER_EDGE_OFFSET = -4.000000; // Vertical offset of green zo
 // Controls how far green zones extend outward from the grid edges
 // This replaces the old 2.5vh value, now as percentage of grid container
 
+// Water Zone Controls (fire/ice theme) — defaults mirror green zones, tweak as needed
+export const WATER_INNER_EDGE_LENGTH = GREEN_INNER_EDGE_LENGTH;
+export const WATER_INNER_EDGE_WIDTH = GREEN_INNER_EDGE_WIDTH;
+export const WATER_INNER_EDGE_POSITION = GREEN_INNER_EDGE_POSITION;
+export const WATER_OUTER_EDGE_LENGTH = GREEN_OUTER_EDGE_LENGTH;
+export const WATER_OUTER_EDGE_OFFSET = GREEN_OUTER_EDGE_OFFSET;
+
 // Selection Mode Coloring Controls
 export const SELECTION_START_COLOR = '#fff9e6'; // Start color for fill mode selection animation
 // Very light yellow/white color that the selection animation starts from

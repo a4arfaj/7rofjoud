@@ -173,8 +173,8 @@ body {
     radial-gradient(circle at 60% 40%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%),
     radial-gradient(circle at 80% 70%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 55%);
   background-repeat: no-repeat;
-  background-size: 35% 35%, 28% 28%, 30% 30%;
-  animation: water-zone-bubbles 6s ease-in-out infinite;
+  background-size: 40% 40%, 32% 32%, 34% 34%;
+  animation: water-zone-bubbles 5s ease-in-out infinite;
   mix-blend-mode: screen;
   pointer-events: none;
 }

@@ -40,4 +40,3 @@ function ResetOverlay({ timer, playerName, toArabicNumerals, onReset }: ResetOve
 
 export default ResetOverlay;
 
-

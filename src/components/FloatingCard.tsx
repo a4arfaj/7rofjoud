@@ -151,4 +151,3 @@ function FloatingCard({ visible, label, onStartRedPhase }: FloatingCardProps) {
 
 export default FloatingCard;
 
-
