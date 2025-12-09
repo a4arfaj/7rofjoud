@@ -109,7 +109,6 @@ function App() {
     );
     return match?.id ?? 'custom';
   }, [zoneColors]);
-  const isFireIce = activeThemeId === 'fireice';
 
   // Reset Timer State
   const [resetTimer, setResetTimer] = useState<ResetTimer | null>(null);
