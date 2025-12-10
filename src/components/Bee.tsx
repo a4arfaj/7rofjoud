@@ -9,9 +9,13 @@ interface BeeProps {
   hexSize: number;
   grid: HexCellData[];
   startTime?: number; // Firebase timestamp for sync across all clients
+  onStateChange?: (isFlying: boolean) => void; // Callback when bee state changes
+  onPositionUpdate?: (position: { x: number; y: number; rotation: number; state: 'flying-in' | 'landed' | 'leaving' }) => void; // Callback to report bee position/state
+  syncedState?: { x: number; y: number; rotation: number; state: 'flying-in' | 'landed' | 'leaving' } | null; // Synced state from Firebase (for clients)
+  isCreator?: boolean; // Whether this is the host
 }
 
-const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize, grid, startTime }) => {
+const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize, grid, startTime, onStateChange, onPositionUpdate, syncedState, isCreator = false }) => {
   const posRef = useRef({ x: -200, y: 200 }); // Start off-screen left
   const stateRef = useRef<'flying-in' | 'landed' | 'leaving'>('flying-in');
   const rotationRef = useRef(0);
@@ -22,6 +26,7 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
   const requestRef = useRef<number | undefined>(undefined);
   const hasCalledReachTarget = useRef(false);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  const prevStateRef = useRef<'flying-in' | 'landed' | 'leaving' | null>(null);
 
   // Calculate viewBox bounds for coordinate conversion
   const layoutSize = hexSize * 1.0;
@@ -59,8 +64,40 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       startTimeRef.current = startTime || Date.now();
       landedTimeRef.current = null;
       hasCalledReachTarget.current = false;
+      // Notify state change: bee starting to fly
+      if (onStateChange) {
+        onStateChange(true);
+        prevStateRef.current = 'flying-in';
+      }
+    } else if (!targetCell && prevStateRef.current !== null) {
+      // Bee removed, stop sound
+      if (onStateChange) {
+        onStateChange(false);
+        prevStateRef.current = null;
+      }
     }
-  }, [targetCell, startTime, viewBoxMinX, viewBoxMinY, viewBoxHeight]);
+  }, [targetCell, startTime, viewBoxMinX, viewBoxMinY, viewBoxHeight, onStateChange]);
+
+  // Watch syncedState changes for clients and notify state changes
+  useEffect(() => {
+    if (syncedState && !isCreator && onStateChange) {
+      const isFlying = syncedState.state === 'flying-in' || syncedState.state === 'leaving';
+      const wasFlying = prevStateRef.current === 'flying-in' || prevStateRef.current === 'leaving' || prevStateRef.current === null;
+      
+      // Only notify if state actually changed
+      if (isFlying !== wasFlying) {
+        onStateChange(isFlying);
+        prevStateRef.current = syncedState.state;
+      } else if (prevStateRef.current !== syncedState.state) {
+        // Update prevState even if flying status didn't change
+        prevStateRef.current = syncedState.state;
+      }
+    } else if (!syncedState && !isCreator && prevStateRef.current !== null && onStateChange) {
+      // Bee state cleared
+      onStateChange(false);
+      prevStateRef.current = null;
+    }
+  }, [syncedState, isCreator, onStateChange]);
 
   const animate = useCallback(() => {
     if (!targetCell) {
@@ -68,6 +105,27 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
       return;
     }
 
+    // If synced state is provided (client), use it directly instead of calculating
+    if (syncedState && !isCreator) {
+      posRef.current = { x: syncedState.x, y: syncedState.y };
+      rotationRef.current = syncedState.rotation;
+      stateRef.current = syncedState.state;
+      
+      // If bee has been leaving for more than 3 seconds, it should be finished
+      // But we rely on Firebase clearing beeState, so we just render what we get
+      forceUpdate();
+      requestRef.current = requestAnimationFrame(animate);
+      return;
+    }
+    
+    // If no targetCell and we're the host, bee should be gone
+    if (!targetCell && isCreator) {
+      // This shouldn't happen, but if it does, ensure we stop
+      requestRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
+    // Host calculates position locally
     const targetPixel = hexToPixel(targetCell, layoutSize);
     const targetX = targetPixel.x;
     const targetY = targetPixel.y;
@@ -99,6 +157,11 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         // Keep the rotation from the flight (don't reset to 0 to avoid visual glitch)
         // rotationRef.current stays as calculated during flight
         landedTimeRef.current = now;
+        // Notify state change: bee landed (not flying)
+        if (onStateChange && prevStateRef.current !== 'landed') {
+          onStateChange(false);
+          prevStateRef.current = 'landed';
+        }
       } else {
         posRef.current = {
           x: startX + (targetX - startX) * progress,
@@ -132,12 +195,24 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
         const exitAngle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
         leavingDirectionRef.current = exitAngle; // Lock the direction
         rotationRef.current = exitAngle;
+        // Notify state change: bee leaving (flying again)
+        if (onStateChange && prevStateRef.current !== 'leaving') {
+          onStateChange(true);
+          prevStateRef.current = 'leaving';
+        }
       }
     } else if (state === 'leaving') {
       const leaveElapsed = landedTimeRef.current ? now - landedTimeRef.current : 0;
 
       if (leaveElapsed > 3000) {
+        // Notify state change: bee finished (not flying) - do this BEFORE onFinish
+        if (onStateChange && prevStateRef.current !== null) {
+          onStateChange(false);
+          prevStateRef.current = null;
+        }
+        // Call onFinish to despawn the bee
         onFinish();
+        // Stop animation loop
         return;
       } else {
         // Use locked direction instead of recalculating every frame
@@ -164,8 +239,19 @@ const Bee: React.FC<BeeProps> = ({ targetCell, onReachTarget, onFinish, hexSize,
     }
 
     forceUpdate();
+    
+    // Report position update to parent (host only) for Firebase sync
+    if (isCreator && onPositionUpdate) {
+      onPositionUpdate({
+        x: posRef.current.x,
+        y: posRef.current.y,
+        rotation: rotationRef.current,
+        state: stateRef.current
+      });
+    }
+    
     requestRef.current = requestAnimationFrame(animate);
-  }, [targetCell, layoutSize, onReachTarget, onFinish, viewBoxMinX, viewBoxMinY, viewBoxWidth, viewBoxHeight]);
+  }, [targetCell, layoutSize, onReachTarget, onFinish, viewBoxMinX, viewBoxMinY, viewBoxWidth, viewBoxHeight, syncedState, isCreator, onPositionUpdate]);
 
   // Start animation loop
   useEffect(() => {

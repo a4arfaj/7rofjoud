@@ -96,6 +96,8 @@ function App() {
   const [activeBeeCell, setActiveBeeCell] = useState<HexCellData | null>(null);
   const [beeStartTime, setBeeStartTime] = useState<number | null>(null);
   const lastBeeTimestampRef = useRef<number>(0);
+  const [beeSyncedState, setBeeSyncedState] = useState<{ x: number; y: number; rotation: number; state: 'flying-in' | 'landed' | 'leaving' } | null>(null);
+  const beePositionUpdateThrottleRef = useRef<number | null>(null);
   const beeSchedulerTimeoutRef = useRef<number | null>(null);
   const randomSelectionTimeoutsRef = useRef<number[]>([]);
   const [isRandomSelecting, setIsRandomSelecting] = useState(false);
@@ -132,6 +134,11 @@ function App() {
   
   const prevBuzzerRef = useRef<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
+  const beeBuzzOscillatorRef = useRef<OscillatorNode | null>(null);
+  const beeBuzzGainRef = useRef<GainNode | null>(null);
+  const beeBuzzLFORef = useRef<OscillatorNode | null>(null);
+  const beeBuzzTimeoutRef = useRef<number | null>(null);
+  const beeBuzzActiveRef = useRef<boolean>(false); // prevents re-triggering the buzz within same flight
   
   const hasUncoloredCells = useMemo(() => grid.some((cell) => cell.state === 0), [grid]);
 
@@ -143,8 +150,19 @@ function App() {
   useEffect(() => {
     return () => {
       clearRandomSelectionTimers();
+      stopBeeBuzz(); // Clean up bee buzz sound on unmount
     };
   }, []);
+
+  // Stop bee buzz when activeBeeCell becomes null (host) or when leaving room
+  useEffect(() => {
+    if (!activeBeeCell) {
+      stopBeeBuzz();
+    }
+    return () => {
+      stopBeeBuzz();
+    };
+  }, [activeBeeCell, roomId]);
 
   // Click outside to close menus
   useEffect(() => {
@@ -316,6 +334,217 @@ function App() {
     }
   };
 
+  // Bubble pop sound
+  const playBubblePopSound = async () => {
+    try {
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Pop sound: quick burst with frequency drop
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+
+      const now = audioContext.currentTime;
+      gainNode.gain.setValueAtTime(0.2, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.1);
+    } catch (error) {
+      console.error('Error playing bubble pop sound:', error);
+    }
+  };
+
+  // Bee interaction sound (when bee takes something)
+  const playBeeInteractionSound = async () => {
+    try {
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Subtle "pick" sound: quick upward chirp
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.08);
+
+      const now = audioContext.currentTime;
+      gainNode.gain.setValueAtTime(0.12, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.08);
+    } catch (error) {
+      console.error('Error playing bee interaction sound:', error);
+    }
+  };
+
+  // Bee buzzing sound - short, bee-like buzz (~2s) when flying
+  const startBeeBuzz = async () => {
+    try {
+      // If already running, don't restart
+      if (beeBuzzActiveRef.current || beeBuzzOscillatorRef.current) return;
+
+      const audioContext = await getAudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Bee-like buzz: a slightly brighter triangle with gentle wobble
+      oscillator.type = 'triangle';
+      oscillator.frequency.value = 170; // Base buzz freq
+
+      // Gentle frequency modulation for subtle buzzing effect
+      const lfo = audioContext.createOscillator();
+      const lfoGain = audioContext.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = 18; // Faster flutter
+      lfoGain.gain.value = 8; // Slightly deeper wobble
+      lfo.connect(lfoGain);
+      lfoGain.connect(oscillator.frequency);
+      lfo.start();
+
+      const now = audioContext.currentTime;
+      // Short envelope: quick rise then settle lower, fade out by 2s
+      gainNode.gain.setValueAtTime(0.0, now);
+      gainNode.gain.linearRampToValueAtTime(0.05, now + 0.05);
+      gainNode.gain.linearRampToValueAtTime(0.02, now + 0.4);
+      gainNode.gain.linearRampToValueAtTime(0.0, now + 2.0); // Fade out completely by 2s
+
+      oscillator.start(now);
+      oscillator.stop(now + 2.0); // Auto-stop after exactly 2 seconds
+      
+      // Store references to stop later
+      beeBuzzOscillatorRef.current = oscillator;
+      beeBuzzGainRef.current = gainNode;
+      beeBuzzLFORef.current = lfo;
+      beeBuzzActiveRef.current = true;
+
+      // Auto-stop cleanup after 2s (backup in case oscillator.stop doesn't work)
+      if (beeBuzzTimeoutRef.current) {
+        clearTimeout(beeBuzzTimeoutRef.current);
+      }
+      beeBuzzTimeoutRef.current = window.setTimeout(() => {
+        stopBeeBuzz();
+      }, 2100); // Slightly after oscillator stop to ensure cleanup
+    } catch (error) {
+      console.error('Error starting bee buzz sound:', error);
+      // Reset flag on error
+      beeBuzzActiveRef.current = false;
+    }
+  };
+
+  const stopBeeBuzz = () => {
+    try {
+      // Clear any pending auto-stop timeout
+      if (beeBuzzTimeoutRef.current) {
+        clearTimeout(beeBuzzTimeoutRef.current);
+        beeBuzzTimeoutRef.current = null;
+      }
+      
+      // Stop LFO first
+      if (beeBuzzLFORef.current) {
+        try {
+          beeBuzzLFORef.current.stop();
+        } catch (e) {
+          // Ignore errors if already stopped
+        }
+        beeBuzzLFORef.current = null;
+      }
+      
+      // Stop main oscillator immediately (no fade for faster response)
+      if (beeBuzzOscillatorRef.current) {
+        try {
+          if (beeBuzzGainRef.current && audioContextRef.current) {
+            // Stop gain immediately
+            const now = audioContextRef.current.currentTime;
+            beeBuzzGainRef.current.gain.cancelScheduledValues(now);
+            beeBuzzGainRef.current.gain.setValueAtTime(0, now);
+          }
+          // Stop oscillator immediately
+          beeBuzzOscillatorRef.current.stop();
+        } catch (e) {
+          // Ignore errors if already stopped
+        }
+        // Always clear references
+        beeBuzzOscillatorRef.current = null;
+        beeBuzzGainRef.current = null;
+      }
+      
+      // Always reset the active flag
+      beeBuzzActiveRef.current = false;
+    } catch (error) {
+      console.error('Error stopping bee buzz sound:', error);
+      // Force clear all references on error
+      beeBuzzOscillatorRef.current = null;
+      beeBuzzGainRef.current = null;
+      beeBuzzLFORef.current = null;
+      beeBuzzActiveRef.current = false;
+      beeBuzzTimeoutRef.current = null;
+    }
+  };
+
+  // Handle bee state changes (host + clients) - only start once per flying segment, stop otherwise
+  const handleBeeStateChange = (isFlying: boolean) => {
+    if (isFlying) {
+      if (!beeBuzzActiveRef.current) {
+        startBeeBuzz();
+      }
+    } else {
+      stopBeeBuzz();
+    }
+  };
+  
+  // Watch beeSyncedState for clients to control sound based on state transitions
+  useEffect(() => {
+    if (!isCreator) {
+      const isFlying = beeSyncedState
+        ? beeSyncedState.state === 'flying-in' || beeSyncedState.state === 'leaving'
+        : false;
+      const isLandedOrGone = !beeSyncedState || beeSyncedState.state === 'landed';
+
+      if (isFlying) {
+        if (!beeBuzzActiveRef.current) {
+          startBeeBuzz();
+        }
+      } else if (isLandedOrGone) {
+        stopBeeBuzz();
+      }
+    }
+  }, [beeSyncedState, isCreator]);
+  
+  // Additional safeguard: stop sound when activeBeeCell becomes null (for both host and clients)
+  useEffect(() => {
+    if (!activeBeeCell) {
+      stopBeeBuzz();
+    }
+  }, [activeBeeCell]);
+
+  // Play bubble pop sound when bubbles are popped (for all players)
+  const prevBubblesRef = useRef<BubbleData[]>([]);
+  useEffect(() => {
+    // Check for newly popped bubbles
+    bubbles.forEach(bubble => {
+      if (bubble.popped && bubble.popTime) {
+        const prevBubble = prevBubblesRef.current.find(pb => pb.id === bubble.id);
+        // If bubble just became popped (wasn't popped before), play sound
+        if (!prevBubble || !prevBubble.popped) {
+          playBubblePopSound();
+        }
+      }
+    });
+    prevBubblesRef.current = bubbles;
+  }, [bubbles]);
+
   const checkRoomExists = async (id: string): Promise<boolean> => {
     try {
       const roomRef = ref(db, `rooms/${id}`);
@@ -437,8 +666,18 @@ function App() {
             }
           }
           
+          // Re-enable buzzer button when buzzer is reset (becomes inactive)
+          if (!newBuzzer.active && prevBuzzer.active) {
+            setBuzzerDisabled(false);
+          }
+          
           prevBuzzerRef.current = newBuzzer;
           setBuzzer(newBuzzer);
+        } else if (prevBuzzerRef.current.active) {
+          // Buzzer was cleared, re-enable
+          setBuzzerDisabled(false);
+          prevBuzzerRef.current = { active: false, playerName: null, timestamp: 0 };
+          setBuzzer({ active: false, playerName: null, timestamp: 0 });
         }
         // Sync players list
         if (data.players) {
@@ -479,6 +718,27 @@ function App() {
           // If beeTarget is cleared in Firebase, clear local state too
           setActiveBeeCell(null);
           setBeeStartTime(null);
+          setBeeSyncedState(null);
+          stopBeeBuzz(); // Ensure sound stops when bee target is cleared
+        }
+        
+        // Sync bee state (position/rotation) from host - for clients only
+        if (!isCreator && data.beeState && data.beeState.targetCellId === activeBeeCell?.id) {
+          const newState = {
+            x: data.beeState.x,
+            y: data.beeState.y,
+            rotation: data.beeState.rotation,
+            state: data.beeState.state
+          };
+          setBeeSyncedState(newState);
+          
+          // Stop sound if bee landed or is gone
+          if (newState.state === 'landed' || !data.beeState) {
+            stopBeeBuzz();
+          }
+        } else if (!isCreator && (!data.beeState || (data.beeState && data.beeState.targetCellId !== activeBeeCell?.id))) {
+          setBeeSyncedState(null);
+          stopBeeBuzz(); // Stop sound when bee state is cleared
         }
         // Sync bubbles
         if (data.bubbles) {
@@ -555,27 +815,51 @@ function App() {
   };
 
   // Handle Buzzer Press (Guest)
+  const [buzzerDisabled, setBuzzerDisabled] = useState(false);
+
   const handleBuzzerPress = () => {
     if (isCreator) return; // Host doesn't buzz
     if (buzzer.active) return; // Local guard if state already active
+    if (buzzerDisabled) return; // Prevent multiple clicks
+
+    // Disable button immediately to prevent double-clicks
+    setBuzzerDisabled(true);
 
     // Play buzz sound when button is pressed
     playBuzzSound();
 
     if (roomId) {
       const buzzerRef = ref(db, `rooms/${roomId}/buzzer`);
+      const clickTimestamp = Date.now();
+      
       runTransaction(buzzerRef, (current) => {
+        // Only accept if buzzer is not active AND this click is earlier than any existing timestamp
         if (!current || !current.active) {
           return {
             active: true,
             playerName,
-            timestamp: Date.now()
+            timestamp: clickTimestamp
           };
         }
+        // If someone already buzzed, check if this click was earlier (shouldn't happen due to disable, but safety check)
+        if (current.timestamp && clickTimestamp < current.timestamp) {
+          // This click was earlier, accept it
+          return {
+            active: true,
+            playerName,
+            timestamp: clickTimestamp
+          };
+        }
+        // Reject - someone else buzzed first
         return current;
       }, { applyLocally: false }).catch((err: any) => {
         console.error('Firebase Error (Buzzer Transaction):', err);
+        // Re-enable on error
+        setBuzzerDisabled(false);
       });
+    } else {
+      // Re-enable if no room
+      setBuzzerDisabled(false);
     }
   };
 
@@ -617,7 +901,8 @@ function App() {
               // 2. Start flight to Fake Target
               const now = Date.now();
               update(ref(db, `rooms/${roomId}`), {
-                beeTarget: { id: fakeTarget.id, timestamp: now }
+                beeTarget: { id: fakeTarget.id, timestamp: now },
+                beeState: null // Clear old state
               });
 
               // Calculate flight time to fake target to ensure we switch BEFORE landing
@@ -654,14 +939,16 @@ function App() {
                 const finalSwitchTime = Math.max(500, switchTime);
                 setTimeout(() => {
                    update(ref(db, `rooms/${roomId}`), {
-                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() },
+                      beeState: null // Clear old state when switching
                    });
                 }, finalSwitchTime);
               } else {
                  // Fallback if grid empty
                  setTimeout(() => {
                    update(ref(db, `rooms/${roomId}`), {
-                      beeTarget: { id: realTarget.id, timestamp: Date.now() }
+                      beeTarget: { id: realTarget.id, timestamp: Date.now() },
+                      beeState: null // Clear old state
                    });
                  }, 2500);
               }
@@ -669,7 +956,8 @@ function App() {
               // Direct path: fly straight to real target (no fake-out)
               const now = Date.now();
               update(ref(db, `rooms/${roomId}`), {
-                beeTarget: { id: realTarget.id, timestamp: now }
+                beeTarget: { id: realTarget.id, timestamp: now },
+                beeState: null // Clear old state
               });
             }
 
@@ -701,11 +989,13 @@ function App() {
          if (index !== -1) {
            if (currentCell.state === 2 || currentCell.state === 3) {
              // If colored, clear it
+             playBeeInteractionSound(); // Play sound when bee takes something
              update(ref(db, `rooms/${roomId}/grid/${index}`), { state: 0 });
            } else {
              // If uncolored, 1% chance to color randomly
              if (Math.random() < 0.01) {
                const newState = Math.random() < 0.5 ? 2 : 3; // orange or green
+               playBeeInteractionSound(); // Play sound when bee takes something
                update(ref(db, `rooms/${roomId}/grid/${index}`), { state: newState });
              }
            }
@@ -715,11 +1005,78 @@ function App() {
   };
 
   const handleBeeFinish = () => {
+    // Stop sound first, then clear state
+    stopBeeBuzz();
     setActiveBeeCell(null);
-    // Clear beeTarget from Firebase so next bee can spawn
+    setBeeSyncedState(null);
+    
+    // Clear beeTarget and beeState from Firebase so next bee can spawn
     if (isCreator && roomId) {
       update(ref(db, `rooms/${roomId}`), {
-        beeTarget: null
+        beeTarget: null,
+        beeState: null
+      }).then(() => {
+        // Double-check sound is stopped after Firebase update
+        stopBeeBuzz();
+      }).catch((err: any) => {
+        console.error('Error clearing bee state:', err);
+        // Still stop sound even if Firebase update fails
+        stopBeeBuzz();
+      });
+    } else {
+      // For clients, ensure sound is stopped
+      stopBeeBuzz();
+    }
+  };
+
+  // Handle bee position updates from host (throttled to avoid too many Firebase updates)
+  const handleBeePositionUpdate = (position: { x: number; y: number; rotation: number; state: 'flying-in' | 'landed' | 'leaving' }) => {
+    if (!isCreator || !roomId) {
+      // Clear beeState if bee is gone (for non-creators or when roomId is missing)
+      if (!roomId || (!activeBeeCell && roomId)) {
+        if (roomId) {
+          update(ref(db, `rooms/${roomId}`), { beeState: null }).catch(() => {});
+        }
+      }
+      return;
+    }
+    
+    // If no activeBeeCell but we have a position update, something is wrong - clear state
+    if (!activeBeeCell) {
+      update(ref(db, `rooms/${roomId}`), { beeState: null }).catch(() => {});
+      return;
+    }
+    
+    // For landed state, sync immediately (no throttle) so late joiners see it
+    const shouldThrottle = position.state !== 'landed';
+    
+    if (shouldThrottle) {
+      // Throttle updates to every 50ms (20 updates per second) for smooth sync when flying
+      if (beePositionUpdateThrottleRef.current) {
+        clearTimeout(beePositionUpdateThrottleRef.current);
+      }
+      
+      beePositionUpdateThrottleRef.current = window.setTimeout(() => {
+        update(ref(db, `rooms/${roomId}/beeState`), {
+          x: position.x,
+          y: position.y,
+          rotation: position.rotation,
+          state: position.state,
+          targetCellId: activeBeeCell.id
+        }).catch((err: any) => {
+          console.error('Error syncing bee state:', err);
+        });
+      }, 50);
+    } else {
+      // For landed state, sync immediately
+      update(ref(db, `rooms/${roomId}/beeState`), {
+        x: position.x,
+        y: position.y,
+        rotation: position.rotation,
+        state: position.state,
+        targetCellId: activeBeeCell.id
+      }).catch((err: any) => {
+        console.error('Error syncing bee state:', err);
       });
     }
   };
@@ -781,6 +1138,8 @@ function App() {
 
   const handleBubblePop = (id: string) => {
     if (!roomId) return;
+    // Play pop sound
+    playBubblePopSound();
     update(ref(db, `rooms/${roomId}/bubbles/${id}`), {
       popped: true,
       popTime: Date.now()
@@ -870,21 +1229,26 @@ function App() {
           cell.id === targetCell.id ? { ...cell, state: 1 as 0 | 1 | 2 | 3 } : cell
         );
         setGrid(nextGrid);
-        // Play click sound on every cell change
-        playClickSound();
+        // Play click sound on every cell change (except final)
+        if (!isFinal) {
+          playClickSound();
+        }
+
+        // Sync every grid update to Firebase so others see the animation
+        if (roomId) {
+          update(ref(db, `rooms/${roomId}`), { grid: nextGrid })
+            .catch((err: any) => {
+              console.error('Firebase Error (Random Select Animation):', err);
+            });
+        }
 
         if (isFinal) {
-          // Play final sound on selection
+          // Play final sound on selection (no click sound for final cell)
           playRandomSelectSound();
           if (roomId) {
-            update(ref(db, `rooms/${roomId}`), { grid: nextGrid })
-              .catch((err: any) => {
-                console.error('Firebase Error (Random Select):', err);
-              })
-              .finally(() => {
-                setIsRandomSelecting(false);
-                clearRandomSelectionTimers();
-              });
+            // Final update already sent above, just mark as complete
+            setIsRandomSelecting(false);
+            clearRandomSelectionTimers();
           } else {
             setIsRandomSelecting(false);
             clearRandomSelectionTimers();
@@ -1104,11 +1468,16 @@ function App() {
                 onReset={handleResetBuzzer}
               />
 
-              <FloatingCard
-                visible={isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown')}
-                label={lastBuzzerPlayerRef.current || buzzer.playerName || '---'}
-                onStartRedPhase={handleStartRedPhase}
-              />
+              {/* FloatingCard - positioned below honeycomb on mobile, not in front */}
+              <div className="fixed bottom-0 left-0 right-0 z-[1] flex justify-center pb-4 sm:pb-6 pointer-events-none">
+                <div className="pointer-events-auto">
+                  <FloatingCard
+                    visible={isCreator && showCard && (!resetTimer || resetTimer.phase !== 'countdown')}
+                    label={lastBuzzerPlayerRef.current || buzzer.playerName || '---'}
+                    onStartRedPhase={handleStartRedPhase}
+                  />
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -1345,6 +1714,10 @@ function App() {
                       hexSize={HEX_SIZE}
                       grid={grid}
                       startTime={beeStartTime || undefined}
+                      onStateChange={handleBeeStateChange}
+                      onPositionUpdate={handleBeePositionUpdate}
+                      syncedState={!isCreator ? beeSyncedState : undefined}
+                      isCreator={isCreator}
                     />
                   )}
                   <div className="absolute inset-0 z-20 cursor-default" />
@@ -1356,7 +1729,7 @@ function App() {
            <div className="flex-shrink-0 w-full bg-[#5e35b1] pb-8 pt-4 flex justify-center items-center z-50 border-t-4 border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
               <button
                 onClick={handleBuzzerPress}
-                disabled={buzzer.active}
+                disabled={buzzer.active || buzzerDisabled}
                 className={`
                   w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
                   ${buzzer.active 
@@ -1598,6 +1971,10 @@ function App() {
                 hexSize={HEX_SIZE}
                 grid={grid}
                 startTime={beeStartTime || undefined}
+                onStateChange={handleBeeStateChange}
+                onPositionUpdate={handleBeePositionUpdate}
+                syncedState={!isCreator ? beeSyncedState : undefined}
+                isCreator={isCreator}
               />
             )}
           </div>
