@@ -88,6 +88,11 @@ function App() {
   const [playerName, setPlayerName] = useState('');
   const [grid, setGrid] = useState<HexCellData[]>(() => generateHexGrid(ARABIC_LETTERS));
   const [buzzer, setBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
+  // "Settled" buzzer: only updated after the buzzer state is stable for BUZZER_SETTLE_MS.
+  // This prevents flicker when two players press at nearly the same time.
+  const BUZZER_SETTLE_MS = 600;
+  const [settledBuzzer, setSettledBuzzer] = useState<BuzzerState>({ active: false, playerName: null, timestamp: 0 });
+  const buzzerSettleTimerRef = useRef<number | null>(null);
   // Track all players in the room for the host
   const [players, setPlayers] = useState<Player[]>([]);
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
@@ -151,6 +156,11 @@ function App() {
     return () => {
       clearRandomSelectionTimers();
       stopBeeBuzz(); // Clean up bee buzz sound on unmount
+      // Clean up buzzer settle timer
+      if (buzzerSettleTimerRef.current) {
+        clearTimeout(buzzerSettleTimerRef.current);
+        buzzerSettleTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -653,18 +663,11 @@ function App() {
         if (data.grid && Array.isArray(data.grid)) {
           setGrid(data.grid);
         }
-        // Sync buzzer state
+        // Sync buzzer state — raw state updates immediately.
+        // Sounds, winner display, and timer are driven by the *settled* buzzer (see below).
         if (data.buzzer) {
           const newBuzzer = data.buzzer;
           const prevBuzzer = prevBuzzerRef.current;
-
-          // Detect when buzzer becomes active
-          if (newBuzzer.active && !prevBuzzer.active) {
-            // Only the winner hears the win sound; others silent
-            if (newBuzzer.playerName === playerName) {
-              playWinSound();
-            }
-          }
 
           // Re-enable buzzer button when buzzer is reset (becomes inactive)
           if (!newBuzzer.active && prevBuzzer.active) {
@@ -673,11 +676,45 @@ function App() {
 
           prevBuzzerRef.current = newBuzzer;
           setBuzzer(newBuzzer);
+
+          // --- Settling logic ---
+          // When the buzzer becomes active, wait BUZZER_SETTLE_MS for the
+          // Firebase transaction to resolve. If the value remains the same
+          // for that window, treat it as confirmed.
+          if (newBuzzer.active) {
+            if (buzzerSettleTimerRef.current) {
+              clearTimeout(buzzerSettleTimerRef.current);
+            }
+            buzzerSettleTimerRef.current = window.setTimeout(() => {
+              // Re-read the latest raw buzzer from the ref (closure-safe)
+              const latest = prevBuzzerRef.current;
+              if (latest.active && latest.playerName) {
+                setSettledBuzzer(latest);
+                // Play win sound only for the confirmed winner
+                if (latest.playerName === playerName) {
+                  playWinSound();
+                }
+              }
+              buzzerSettleTimerRef.current = null;
+            }, BUZZER_SETTLE_MS);
+          } else {
+            // Buzzer was deactivated — immediately clear settled state
+            if (buzzerSettleTimerRef.current) {
+              clearTimeout(buzzerSettleTimerRef.current);
+              buzzerSettleTimerRef.current = null;
+            }
+            setSettledBuzzer({ active: false, playerName: null, timestamp: 0 });
+          }
         } else if (prevBuzzerRef.current.active) {
-          // Buzzer was cleared, re-enable
+          // Buzzer was cleared from Firebase, re-enable
           setBuzzerDisabled(false);
           prevBuzzerRef.current = { active: false, playerName: null, timestamp: 0 };
           setBuzzer({ active: false, playerName: null, timestamp: 0 });
+          if (buzzerSettleTimerRef.current) {
+            clearTimeout(buzzerSettleTimerRef.current);
+            buzzerSettleTimerRef.current = null;
+          }
+          setSettledBuzzer({ active: false, playerName: null, timestamp: 0 });
         }
         // Sync players list
         if (data.players) {
@@ -833,7 +870,7 @@ function App() {
       const clickTimestamp = Date.now();
 
       runTransaction(buzzerRef, (current) => {
-        // Only accept if buzzer is not active
+        // If buzzer is not yet active, claim it
         if (!current || !current.active) {
           return {
             active: true,
@@ -841,15 +878,21 @@ function App() {
             timestamp: clickTimestamp
           };
         }
-        // Reject - someone else buzzed first. Abort the transaction.
-        return undefined;
-      }, { applyLocally: false }).catch((err: any) => {
+        // Already active — return current value unchanged (never abort).
+        // Aborting (return undefined) can cause both transactions to cancel
+        // each other when two players press at exactly the same time.
+        return current;
+      }, { applyLocally: false }).then(() => {
+        // Whether we won or lost, the button stays disabled.
+        // It will only re-enable when the host resets the buzzer
+        // (detected via onValue: !newBuzzer.active && prevBuzzer.active).
+      }).catch((err: any) => {
         console.error('Firebase Error (Buzzer Transaction):', err);
-        // Re-enable on error
-        setBuzzerDisabled(false);
+        // On network error the buzzer may not have been set at all.
+        // Still keep button disabled — it will re-enable on next host reset.
       });
     } else {
-      // Re-enable if no room
+      // Re-enable if no room (offline fallback)
       setBuzzerDisabled(false);
     }
   };
@@ -1250,19 +1293,19 @@ function App() {
     });
   };
 
-  // Auto-start timer when buzzer becomes active and track last player
+  // Auto-start timer when the *settled* buzzer becomes active (confirmed winner)
   useEffect(() => {
-    if (buzzer.active && buzzer.playerName) {
-      // Update last buzzer player
-      lastBuzzerPlayerRef.current = buzzer.playerName;
+    if (settledBuzzer.active && settledBuzzer.playerName) {
+      // Update last buzzer player with the confirmed winner
+      lastBuzzerPlayerRef.current = settledBuzzer.playerName;
 
-      // Start green immediately on press (if no timer running)
+      // Start green immediately on confirmed press (if no timer running)
       if (!resetTimer) {
         setShowCard(false);
         setResetTimer({ active: true, phase: 'initial', time: 4 });
       }
     }
-  }, [buzzer.active, buzzer.playerName, buzzer.timestamp]);
+  }, [settledBuzzer.active, settledBuzzer.playerName, settledBuzzer.timestamp]);
 
   // Reset Timer Effect
   useEffect(() => {
@@ -1722,18 +1765,22 @@ function App() {
               disabled={buzzer.active || buzzerDisabled}
               className={`
                   w-32 h-32 rounded-full shadow-2xl border-8 flex items-center justify-center transition-all transform
-                  ${buzzer.active
-                  ? (buzzer.playerName === playerName
-                    ? 'bg-green-500 border-green-300 scale-110' // You won
-                    : 'bg-red-500 border-red-300 opacity-50 grayscale') // Someone else won
-                  : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Active
+                  ${settledBuzzer.active
+                  ? (settledBuzzer.playerName === playerName
+                    ? 'bg-green-500 border-green-300 scale-110' // Confirmed: You won
+                    : 'bg-red-500 border-red-300 opacity-50 grayscale') // Confirmed: Someone else won
+                  : buzzer.active
+                    ? 'bg-yellow-500 border-yellow-300 animate-pulse' // Confirming...
+                    : 'bg-blue-600 border-blue-400 hover:scale-105 active:scale-95 hover:bg-blue-500' // Ready
                 }
                 `}
             >
               <span className="text-white font-black text-2xl drop-shadow-md">
-                {buzzer.active
-                  ? (buzzer.playerName === playerName ? 'أنت' : buzzer.playerName)
-                  : 'اضغط'}
+                {settledBuzzer.active
+                  ? (settledBuzzer.playerName === playerName ? 'أنت' : settledBuzzer.playerName)
+                  : buzzer.active
+                    ? '...'
+                    : 'اضغط'}
               </span>
             </button>
           </div>

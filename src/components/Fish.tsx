@@ -4,13 +4,12 @@ import { hexToPixel, getHexCorners } from '../utils/hex';
 
 type FishProps = {
   cluster: HexCellData[];
-  zones: Array<{ bounds: { minX: number; maxX: number; minY: number; maxY: number }; corners: Point[] }>;
   size: number;
   layoutSize: number;
   maskId: string;
 };
 
-function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
+function Fish({ cluster, size, layoutSize, maskId }: FishProps) {
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [angle, setAngle] = useState(0); // Direction in degrees (0 = right, 90 = down, 180 = left, 270 = up)
   const [speed] = useState(0.45 + Math.random() * 0.25); // pixels per frame (slower to avoid popping)
@@ -33,9 +32,10 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
   }>>([]);
 
   useEffect(() => {
+    const inflatedSize = size * 1.05; // Slightly inflate the collision area to cover gaps between hexes.
     const cellBounds = cluster.map((cell) => {
       const { x, y } = hexToPixel(cell, layoutSize);
-      const corners = getHexCorners({ x, y }, size);
+      const corners = getHexCorners({ x, y }, inflatedSize);
       const xs = corners.map((p) => p.x);
       const ys = corners.map((p) => p.y);
       return {
@@ -47,16 +47,8 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
         corners,
       };
     });
-    const zoneBounds = zones.map((zone) => ({
-      ...zone.bounds,
-      center: {
-        x: (zone.bounds.minX + zone.bounds.maxX) / 2,
-        y: (zone.bounds.minY + zone.bounds.maxY) / 2,
-      },
-      corners: zone.corners,
-    }));
-    waterBoundsRef.current = [...cellBounds, ...zoneBounds];
-  }, [cluster, zones, layoutSize, size]);
+    waterBoundsRef.current = cellBounds;
+  }, [cluster, layoutSize, size]);
 
   // Check if point is inside any water cell or zone
   const isPointInWater = (p: Point): boolean => {
@@ -129,71 +121,31 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
     return ((bestDir % 360) + 360) % 360;
   };
 
-  const randomPointInTriangle = (a: Point, b: Point, c: Point): Point => {
-    let u = Math.random();
-    let v = Math.random();
-    if (u + v > 1) {
-      u = 1 - u;
-      v = 1 - v;
-    }
-    return {
-      x: a.x + u * (b.x - a.x) + v * (c.x - a.x),
-      y: a.y + u * (b.y - a.y) + v * (c.y - a.y),
-    };
-  };
-
-  const pickRandomZonePoint = (): Point | null => {
-    if (!zones.length) return null;
-    const z = zones[Math.floor(Math.random() * zones.length)];
-    if (z.corners.length >= 3) {
-      return randomPointInTriangle(z.corners[0], z.corners[1], z.corners[2]);
-    }
-    return {
-      x: (z.bounds.minX + z.bounds.maxX) / 2,
-      y: (z.bounds.minY + z.bounds.maxY) / 2,
-    };
-  };
+  // Removed zone points sampling
 
   // Pick a random point inside any water area (zones or cells)
   const pickRandomWaterPoint = (): Point | null => {
     const bounds = waterBoundsRef.current;
     if (!bounds.length) return null;
-    
+
     // Try to find a valid point
     for (let i = 0; i < 20; i++) {
       const b = bounds[Math.floor(Math.random() * bounds.length)];
-      // For triangular zones, use triangle sampling
-      if (b.corners.length === 3) {
-        const pt = randomPointInTriangle(b.corners[0], b.corners[1], b.corners[2]);
-        if (isPointInWater(pt)) return pt;
-      } else {
-        // For hex cells, sample within bounding box
-        const candidate = {
-          x: b.minX + Math.random() * (b.maxX - b.minX),
-          y: b.minY + Math.random() * (b.maxY - b.minY),
-        };
-        if (isPointInWater(candidate)) return candidate;
-      }
+      // For hex cells, sample within bounding box
+      const candidate = {
+        x: b.minX + Math.random() * (b.maxX - b.minX),
+        y: b.minY + Math.random() * (b.maxY - b.minY),
+      };
+      if (isPointInWater(candidate)) return candidate;
     }
     // Fallback to center of first bound
     return bounds[0].center;
   };
 
-  // Initialize position - prefer zones if available
+  // Initialize position
   useEffect(() => {
     if (waterBoundsRef.current.length === 0) return;
-    const zonePoint = pickRandomZonePoint();
     const initAngle = Math.random() * 360; // Random starting direction
-    
-    if (zonePoint) {
-      setPosition(zonePoint);
-      setAngle(initAngle);
-      stateRef.current = { position: zonePoint, angle: initAngle };
-      wanderAngleRef.current = (Math.random() - 0.5) * 40;
-      targetRef.current = pickRandomWaterPoint();
-      nextTargetChangeRef.current = Date.now() + 2000 + Math.random() * 3000;
-      return;
-    }
 
     const spawnBound = waterBoundsRef.current[0];
     const initPos = {
@@ -206,7 +158,7 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
     wanderAngleRef.current = (Math.random() - 0.5) * 40;
     targetRef.current = pickRandomWaterPoint();
     nextTargetChangeRef.current = Date.now() + 2000 + Math.random() * 3000;
-  }, [cluster, zones]);
+  }, [cluster]);
 
   // Animation loop
   useEffect(() => {
@@ -258,7 +210,7 @@ function Fish({ cluster, zones, size, layoutSize, maskId }: FishProps) {
       let angleDiff = desiredAngle - prevAngle;
       if (angleDiff > 180) angleDiff -= 360;
       if (angleDiff < -180) angleDiff += 360;
-      
+
       const maxTurn = 1.8 * deltaTime; // degrees per frame
       let newAngle = prevAngle;
       if (Math.abs(angleDiff) > maxTurn) {
